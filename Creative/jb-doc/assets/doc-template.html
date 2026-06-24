@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Document</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Document-appropriate pairing; swap for a lane-true choice if you have one. -->
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1a1a; --muted: #565656; --rule: #dcdcd6;
+    --serif: "Newsreader", Georgia, serif;
+    --sans: "IBM Plex Sans", system-ui, sans-serif;
+  }
+  body { margin: 0; background: #fff; color: var(--ink);
+         font-family: var(--serif); font-size: 16px; line-height: 1.6; }
+
+  /* ═══ LOAD-BEARING — clean print pagination. Keep these rules verbatim. ═══
+   * The .doc-frame table's repeating <thead>/<tfoot> spacers are what give
+   * every printed page its top + bottom margin. @page margin is 0 on purpose. */
+  .doc { box-sizing: border-box; max-width: 8.5in; margin: 0 auto;
+         background: inherit;
+         padding: 48px clamp(24px, 5vw, 0.75in) 96px; }
+  .doc-frame { width: 100%; border-collapse: collapse; }
+  .doc-frame td { padding: 0; }
+  .running-hdr, .running-ftr, .hdr-space, .ftr-space { display: none; }
+  h1, h2, h3 { text-wrap: balance; }
+  p, li { text-wrap: pretty; }
+
+  @page { size: letter; margin: 0; }
+  @media print {
+    html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    html, body { margin: 0; padding: 0; }
+    .doc { max-width: none !important; margin: 0 !important;
+           padding: 0 0.75in !important; box-shadow: none !important;
+           border: none !important; }
+    .hdr-space, .ftr-space { display: table-cell; height: 0.75in !important; }
+    .running-hdr, .running-ftr { display: flex !important;
+           justify-content: space-between; align-items: baseline;
+           position: fixed !important; left: 0; right: 0;
+           margin: 0 !important; font-size: 11px;
+           letter-spacing: 0.05em; text-transform: uppercase; }
+    .running-hdr { top: 0; padding: 0.35in 0.75in 0 !important; }
+    .running-ftr { bottom: 0; padding: 0 0.75in 0.35in !important; }
+    h1, h2, h3, h4, h5, h6 { break-after: avoid; }
+    figure, pre, blockquote, img, svg, tr { break-inside: avoid; }
+    p, li { orphans: 3; widows: 3; }
+    .screen-only { display: none !important; }
+  }
+  /* ═══ END LOAD-BEARING ═══ */
+
+  /* Document styling — adjust freely. */
+  h1 { font-size: 2.25rem; line-height: 1.15; margin: 0 0 .6rem; font-weight: 600; }
+  h2 { font-size: 1.4rem; margin: 2.2rem 0 .5rem; font-weight: 600; }
+  h3 { font-size: 1.1rem; margin: 1.6rem 0 .4rem; font-weight: 600; }
+  p { margin: 0 0 1rem; }
+  a { color: inherit; text-underline-offset: 2px; }
+  @media print { a { color: var(--ink); } }
+  .lede { font-size: 1.15rem; color: var(--muted); margin: 0 0 1.5rem; }
+  ul, ol { margin: 0 0 1rem; padding-left: 1.3rem; }
+  li { margin: 0 0 .35rem; }
+  table.data { width: 100%; border-collapse: collapse; margin: 1.2rem 0;
+               font-family: var(--sans); font-size: .9rem; }
+  table.data th { text-align: left; border-bottom: 1.5px solid var(--ink); padding: 6px 10px; }
+  table.data td { border-bottom: 1px solid var(--rule); padding: 6px 10px; }
+  figure { margin: 1.5rem 0; }
+  figure img { max-width: 100%; display: block; }
+  figcaption { font-family: var(--sans); font-size: .82rem; color: var(--muted); margin-top: .4rem; }
+  blockquote { margin: 1.5rem 0; padding-left: 1rem;
+               border-left: 2px solid var(--rule); color: var(--muted); }
+</style>
+</head>
+<body>
+<main class="doc">
+
+  <!-- Running header/footer are OFF by default. To enable, uncomment these two
+       lines (they render in print only). The .doc-frame table below stays either way.
+  <div class="running-hdr"><span>Document Title</span><span>2026</span></div>
+  <div class="running-ftr"><span>Author Name</span><span>Confidential</span></div>
+  -->
+
+  <table class="doc-frame" role="presentation">
+    <thead><tr><td class="hdr-space"></td></tr></thead>
+    <tbody><tr><td>
+
+      <!-- DOCUMENT BODY — the first element is the h1, never a masthead or eyebrow line. -->
+      <h1>Document Title</h1>
+      <p class="lede">A one-line standfirst that frames what this document is.</p>
+      <p>Body copy flows as a single continuous column on screen, and the browser
+         paginates it cleanly when the reader prints or saves to PDF.</p>
+
+      <h2>A section heading</h2>
+      <p>Write the document as static HTML. Use real structure — headings, lists,
+         tables, figures — so the hierarchy is clear on screen and in print.</p>
+
+    </td></tr></tbody>
+    <tfoot><tr><td class="ftr-space"></td></tr></tfoot>
+  </table>
+
+</main>
+</body>
+</html>

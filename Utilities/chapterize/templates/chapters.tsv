@@ -1,0 +1,14 @@
+# Chapter plan for cut_chapters.py — one line per chapter:  <start><TAB>Title
+#
+#   start: seconds (1373.0) or MM:SS / H:MM:SS. Use the scene-opening line's
+#          timestamp straight from the SRT — it is an ANCHOR, not a precise cut:
+#          cut_chapters.py snaps it into the adjacent pause, so slightly early is fine.
+#   First chapter starts at 0; each chapter ends where the next begins; last runs to EOF.
+#   Blank lines and #-comments are ignored. Fields are TAB-separated.
+#   Titles are content-based (scene or song name, e.g. "Be Our Guest"), never "Chapter 1".
+#
+# Delete these comments or keep them; either way, replace the rows below.
+0	Prologue - The Enchanted Rose
+1:52	Belle - The Village and Gaston
+9:15	Maurice and the Beast's Castle
+14:04	Belle's Sacrifice
