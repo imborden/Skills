@@ -2,6 +2,11 @@
 
 > Save as `docs/plans/incomplete/YYYY-MM-DD-<kebab-slug>.md`. The orchestrator moves
 > this file to `docs/plans/complete/` when every gate passes.
+>
+> This is a **mid-tier** plan: a fresh **Sonnet** orchestrator executes it. Keep every
+> gate a runnable command, keep every task within Sonnet's reach, and rely on delegated
+> reviewer subagents — not the orchestrator's own taste — for correctness. If any task
+> needs Opus-level reasoning or adversarial critique, this plan belongs in `jb-plan-pro`.
 
 ## Context
 
@@ -17,50 +22,61 @@ auth, API/response shapes). The riskiest ones get a live probe in Phase 1's gate
 
 The shape of the solution and the key decision(s). Skip if trivial.
 
-## How to run this build — orchestrated, gated, task-by-task
+## How to run this build — Sonnet-orchestrated, gated, task-by-task
 
 Execute phases in order. Phase headers carry an execution annotation: `[parallel]` (all tasks at once),
-`[pipeline]` (sequential chain with handoff), `[sequential]` (one at a time with manual review —
-the default). `[adversarial]` composes with `[parallel]` or `[sequential]` for generator→critic→regenerate loops.
+`[pipeline]` (sequential chain with handoff via `**Receives:**`), `[sequential]` (one at a time — the default).
+There is no `[adversarial]` tier in mid plans.
 
-The **Opus orchestrator owns the gates and does not write feature code**: it dispatches one fresh agent
-per task at the tagged tier, respecting the phase annotation's dispatch strategy. Tasks with
-`**Schema:**` get structured output validation. In `[pipeline]` phases, each task's output feeds the
-next via `**Receives:**`. In `[adversarial]` phases, the orchestrator runs the generator→critic→regenerate
-loop per task up to `**Max iterations:**`, blocking on findings at or above `**Threshold:**`.
+The **Sonnet orchestrator stays mechanical**: it dispatches one fresh agent per task at the tagged tier
+(`[haiku]`/`[sonnet]`), respecting the phase annotation, and writes verbatim-content (`[orchestrator]`) files
+itself. It does **not** judge diffs in its own head. After each task it runs the per-task loop below.
 
-Between tasks it reviews the diff in two stages (matches plan? actually works?), runs the gate command
-itself at each phase boundary, flips `- [ ]`→`- [x]` per task, commits per task, and moves this file
-to `complete/` when all gates pass. On failure, bounce the task to a fresh agent with the failure output.
-`[haiku]` = mechanical/fully-specified; `[sonnet]` = judgment/multi-file; `[orchestrator/opus]` =
-validation only.
+**Per-task loop (run for every task):**
+1. Dispatch the implementer (task tier), giving it only that task's section (+ `Receives:` in a pipeline). Pass `Schema:` if present.
+2. Run the task's `**Verify:**` command. On failure, bounce the implementer with the output.
+3. Dispatch the **spec reviewer** (`<ABSOLUTE PATH to spec-reviewer-prompt.md>`, Sonnet). On ❌ → bounce implementer with findings, back to step 2. For `[haiku] (verbatim)` tasks this is a byte-identity check and is the ONLY review — skip to step 5 on ✅.
+4. Dispatch the **code-quality reviewer** (`<ABSOLUTE PATH to code-quality-reviewer-prompt.md>`, Sonnet), only after spec ✅, and **skip entirely for `[haiku] (verbatim)` tasks**. When it runs and the task has plan-locked values, fill the reviewer's **Plan-locked content** slot. On ❌ → bounce, back to step 2.
+5. Flip `- [ ]`→`- [x]` and commit with the task's exact `**Commit:**` message.
+
+> If either reviewer prompt cannot be read at the path above, **STOP and ask the human** — do NOT synthesize a reviewer prompt inline.
+
+At each **phase boundary**, run the `**Gate:**` command yourself and confirm the exact expected output before
+starting the next phase. On gate failure, bounce the responsible task to a fresh agent with the failure output.
+On any surprise that isn't a doc-backed correction (new dependency, cost, scope change, unsure judgment call) →
+**STOP and ask the human.** When every gate passes, move this file to `docs/plans/complete/` using `<git mv | mv — resolved at authoring time via 'git check-ignore docs/'>`.
+
+`[haiku]` = mechanical/fully-specified; `[haiku] (verbatim)` = dispatched exact-byte transcription (spec-compliance review only); `[sonnet]` = judgment/multi-file; `[orchestrator]` = validation + verbatim writes the orchestrator does itself.
 
 ---
 
 ## Phase 1 — <title> [parallel|pipeline|sequential]
 
-<!-- Omit the annotation to default to [sequential]. Valid compositions:
-     [parallel], [pipeline], [sequential], [adversarial] [parallel], [adversarial] [sequential] -->
+<!-- Omit the annotation to default to [sequential]. No [adversarial] in mid plans. -->
 
-**Gate:** `<command>` → <exact expected output/criteria>
-<!-- Gate may reference schema fields: AND testsPassing === true AND filesCreated.length >= 2 -->
-<!-- Make this gate exercise the riskiest unverified assumption (one real call/query),
-     not just a trivial smoke check — surface bad assumptions before later phases build on them. -->
+**Gate:** `<command>` → <exact expected output: string match / count / exit code>
+<!-- MUST be a runnable command with an exact expected result. No prose gates.
+     May reference schema fields: AND testsPassing === true AND filesCreated.length >= 2
+     Make this gate exercise the riskiest unverified assumption (one real call/query)
+     where possible, not just a trivial smoke check. -->
 
-<!-- For [adversarial] phases, add these three fields after the Gate:
-**Critic:** ce-adversarial-reviewer
-**Threshold:** 75
-**Max iterations:** 3 -->
-
-### Task 1 — <name> `[haiku|sonnet]`
+### Task 1 — <name> `[haiku|haiku (verbatim)|sonnet]`
 **Files:** Create/Modify `<exact paths>`
 **Schema:** `{ "filesCreated": ["string"], "testsPassing": "boolean" }`
-<!-- Schema is optional. Omit for tasks where output is hard to schematize.
-     When present, the orchestrator validates agent output against it.
-     Keep it flat — max 2 levels of nesting. -->
+<!-- Schema is optional but valued — it lets the orchestrator validate mechanically.
+     Keep it flat (max 2 levels). Omit only when output is hard to schematize. -->
+
+<!-- Tag a dispatched exact-byte transcription task `[haiku] (verbatim)`: it gets a
+     byte-identity spec-compliance review ONLY and skips code-quality entirely, so the
+     quality reviewer can't flag the plan's own locked bytes as bugs. -->
 
 <!-- For [pipeline] phases, every task except the first MUST include:
 **Receives:** Task N output — `{ "fieldName": "value", ... }` -->
+
+<!-- If a NON-verbatim task hard-codes values the plan mandates (fixed class names, hex
+     literals, intentional ordering), list them so the orchestrator can hand them to the
+     code-quality reviewer's Plan-locked content slot:
+**Plan-locked content:** `<the exact names/literals/ordering the reviewer must NOT flag>` -->
 
 - [ ] Step 1: <for haiku: exact content/diff + numbered steps>
 - [ ] Step 2: <exact command to run> → <exact expected output>
@@ -69,7 +85,7 @@ validation only.
 commands + expected output, and a STOP condition — "if anything differs, stop and
 report, do not improvise.">
 
-**Verify:** `<command>`
+**Verify:** `<runnable command>`
 **Commit:** `<type(scope): message>`
 
 ### Task 2 — <name> `[sonnet]`
@@ -79,24 +95,17 @@ report, do not improvise.">
 **Files:** Create/Modify `<exact paths>`
 **Schema:** `{ "fieldName": "type" }`
 
-... (same shape; sonnet tasks may state intent + constraints rather than verbatim code)
+... (same shape; sonnet tasks may state intent + constraints rather than verbatim code,
+but the scope must stay within Sonnet's reach — no open-ended design calls.)
 
-**Verify:** `<command>`
+**Verify:** `<runnable command>`
 **Commit:** `<type(scope): message>`
 
 ---
 
 ## Phase 2 — <title> [parallel|pipeline|sequential]
 
-<!-- Same annotation options as Phase 1. For adversarial phases:
-## Phase 2 — <title> [adversarial] [parallel]
-**Gate:** `<command>` → `<expected>` AND no critic findings ≥ **Threshold:** value
-**Critic:** ce-adversarial-reviewer
-**Threshold:** 75
-**Max iterations:** 3
--->
-
-**Gate:** `<command>` → <expected>
+**Gate:** `<command>` → <exact expected output>
 
 ### Task 3 — ...
 ...
@@ -115,47 +124,65 @@ report, do not improvise.">
 
 ## Verification (end-to-end)
 
-How to confirm the whole thing works: commands to run, what to observe, tests to pass.
+How to confirm the whole thing works: exact commands to run and their expected output,
+tests to pass. Keep it runnable — the orchestrator executes this, it doesn't eyeball.
 
 ---
 
-## Handoff prompt (paste into a fresh Opus session in this repo)
+## Handoff prompt (paste into a fresh Sonnet session in this repo)
 
-> You are the **Opus orchestrator** for <feature>. The full task-by-task plan is at
+> You are the **Sonnet orchestrator** for <feature>. The full task-by-task plan is at
 > `docs/plans/incomplete/YYYY-MM-DD-<slug>.md` — read it first, in full.
 >
 > **Why:** <one-paragraph context + confirmed scope>.
 >
 > **Also read for grounding:** <key files/docs the build depends on>.
 >
-> **How to run it:** execute phases in order. Phase headers carry execution annotations —
-> `[parallel]` dispatch all tasks at once, `[pipeline]` dispatch sequentially with
-> output feeding the next task, `[sequential]` (default) one at a time with manual
-> review between. `[adversarial]` composes with `[parallel]` or `[sequential]` for
-> generator→critic→regenerate loops — run up to `**Max iterations:**`, block on
-> findings at or above `**Threshold:**`.
+> **Your job is to dispatch and validate — you do NOT write feature code and you do NOT
+> judge diffs in your own head.** For each task: dispatch one fresh agent at its tier
+> (`[haiku]` mechanical, `[haiku] (verbatim)` exact-byte transcription, `[sonnet]`
+> judgment), giving it only that task's section. Then run the task's `Verify` command, then
+> dispatch the **spec reviewer** (`<ABSOLUTE PATH to spec-reviewer-prompt.md>`), then — only
+> after it passes, and only for **non-verbatim** tasks — the **code-quality reviewer**
+> (`<ABSOLUTE PATH to code-quality-reviewer-prompt.md>`). Both reviewers run on Sonnet. On
+> any ❌, bounce the same implementer with the findings and re-run from Verify. You only
+> write verbatim-content files yourself when their exact bytes are in the plan and tagged
+> `[orchestrator]`.
 >
-> Tasks with `**Schema:**` expect structured JSON output — pass the schema when
-> dispatching the agent and validate against it. Gate conditions may reference
-> schema fields by name (`testsPassing === true`). In `[pipeline]` phases, inject
-> each task's validated output as context for the next task via `**Receives:**`.
+> **Verbatim review carve-out:** a `[haiku] (verbatim)` task gets the spec reviewer ONLY
+> (a byte-identity check) and skips code-quality — that reviewer would otherwise flag the
+> plan's own locked bytes (class-name contracts, literals, intentional ordering) as bugs.
+> This carve-out is scoped to verbatim tasks; every non-verbatim task still gets BOTH
+> reviews in order. When the code-quality reviewer runs on a task with mandated values, pass
+> them in its **Plan-locked content** slot so it won't flag them.
 >
-> You own the gates and do **not** write feature code yourself: dispatch one fresh
-> agent per task at its tagged tier (`[haiku]` mechanical, `[sonnet]` judgment),
-> giving each agent only its task's section. Between tasks, review the diff (matches
-> plan? actually works?). At each phase boundary, run the gate command yourself and
-> inspect real output; mark the phase done only when it passes. Flip
-> `- [ ]`→`- [x]` per task and commit per task with the message in the task. When
-> every gate passes, `git mv` this file to `docs/plans/complete/`. On failure,
-> bounce that task to a fresh agent with the failure output.
+> **If you cannot read a reviewer prompt at the path given, STOP and ask the human — never
+> synthesize a reviewer prompt inline.**
+>
+> **How to run it:** execute phases in order. `[parallel]` → dispatch all tasks at once,
+> wait, then gate. `[pipeline]` → dispatch in order, injecting each task's validated output
+> into the next via `Receives:`. `[sequential]` (default) → one at a time. There is no
+> adversarial tier. Tasks with `Schema:` expect structured JSON output — pass the schema
+> when dispatching and validate the returned fields. Gate conditions may reference schema
+> fields by name (`testsPassing === true`).
+>
+> **Gates are commands, not opinions.** At each phase boundary run the `Gate:` command
+> yourself and confirm the exact expected output before proceeding. Flip `- [ ]`→`- [x]`
+> per task and commit per task with the message in the task. When every gate passes, move
+> this file to `docs/plans/complete/` with `<git mv | mv — the command resolved when this
+> plan was authored>`. On gate failure, bounce that task to a fresh agent with the failure
+> output.
 >
 > **Hard rules:** <project-specific invariants the agents must not violate>.
 >
-> **Proof bar:** nothing is "done" without pasted real output; gate any unverified
+> **Proof bar:** nothing is "done" without pasted real command output; gate any unverified
 > assumption with a live probe rather than trusting it.
 >
-> **On surprises:** doc-backed corrections to a planned decision → fix, document, continue;
-> anything that adds a dependency, costs money, or changes scope → STOP and ask.
+> **On surprises — escalate readily (you're a Sonnet driver, so when in doubt, stop):**
+> doc-backed corrections to a planned decision → fix, document, continue; anything that adds
+> a dependency, costs money, changes scope, or needs a judgment call you're unsure of →
+> STOP and ask. If a task turns out to need Opus-level reasoning or adversarial review,
+> STOP and tell the human this build should move to `jb-plan-pro`.
 >
-> Start by reading the plan + grounding docs, then begin Phase 1, Task 1. Report
-> progress at each gate.
+> Start by reading the plan + grounding docs, then begin Phase 1, Task 1. Report progress
+> at each gate.

@@ -1,292 +1,172 @@
 ---
 name: jb-plan
-description: Use when a multi-step build will be implemented in a separate/fresh session by an orchestrator dispatching subagents, or when asked to produce an implementation plan plus a handoff prompt for the next session. Use when planning work that an Opus orchestrator will hand to sonnet/haiku coding agents.
+description: Use for MEDIUM multi-step builds handed to a fresh **Sonnet** orchestrator that dispatches Sonnet/Haiku agents — well-understood work where no single task needs Opus-level reasoning and gates can be expressed as exact commands. Produces an implementation plan plus an embedded handoff prompt for the next session. The orchestrator stays mechanical: it delegates per-task review to Sonnet reviewer subagents rather than judging diffs itself. For HIGH-complexity or safety-critical builds (auth, payments, migrations, anything needing adversarial critique), use jb-plan-pro instead.
 ---
 
-# Writing Orchestrated Plans
+# Writing Sonnet-Orchestrated Plans (mid tier)
 
 ## Overview
 
-Produce a **plan document + embedded handoff prompt** that lets a *fresh* Opus session build a feature by dispatching subagents — without you in the loop. The authoring session's job is to plan, write the doc, deliver the handoff, and **STOP**. Execution happens later, in the new session.
+Produce a **plan document + embedded handoff prompt** that lets a *fresh* **Sonnet** session build a feature by dispatching subagents — without you in the loop. The authoring session plans, writes the doc, delivers the handoff, and **STOPS**. Execution happens later, in the new session.
 
-**Core principle:** the plan is the contract. The fresh orchestrator can only do what the doc says, so the doc must encode the tiers, gates, completion rules, and file lifecycle explicitly — none of it is assumed.
+This is the lighter sibling of `jb-plan-pro`. The difference is the orchestrator's reasoning budget: a Sonnet orchestrator has less headroom than Opus, so **every design choice moves judgment OFF the orchestrator and onto something mechanical** — exact-command gates, schema-validated returns, and *delegated* review by reviewer subagents. The orchestrator dispatches, runs commands, and acts on verdicts; it does not exercise taste.
+
+**Core principle:** the plan is the contract, and the contract must be executable by a driver that infers as little as possible. If a step needs judgment the Sonnet orchestrator can't reliably supply, either make it mechanical or push it into a dispatched agent.
 
 ## When to Use
 
-- A build is large enough to hand off to a separate session.
-- You're asked for "a plan + handoff prompt," "a plan a fresh session can execute," or "an orchestrated/subagent build."
+- A medium build worth handing to a separate session, where the **hardest single task only needs Sonnet-level reasoning**.
+- Every phase boundary can be checked by an **exact command** (test run, type-check, grep, exit code) — not by eyeballing.
+- You're asked for "a plan + handoff prompt" / "an orchestrated build" and the work isn't safety-critical.
 
-**When NOT to use:** small tasks you'll just do now; pure research/exploration with no build; when the human wants you to implement in this same session.
+**When NOT to use — escalate to `jb-plan-pro`:**
+
+- Any single task needs **Opus-level reasoning** (novel architecture, subtle cross-cutting logic, multi-valid-approach design calls). The presence of an `[opus]`-worthy task is the signal you're in the wrong skill.
+- The build touches **auth, payments, data migrations, external API contracts, PII, or production infra** — these want `[adversarial]` critique, which `jb-plan` deliberately omits.
+- A gate can only be stated as prose ("verify it looks right"). If you can't write the gate as a command, the build needs a stronger orchestrator.
+
+**When NOT to use at all:** small tasks you'll just do now; pure research with no build; same-session implementation (use `superpowers:subagent-driven-development`).
 
 ## Workflow
 
 1. **Discovery first — never plan on assumptions.** Explore the codebase (read-only; use Explore agents for breadth) AND ask the human clarifying questions (AskUserQuestion) to resolve scope, approach, and unknowns. Find existing utilities/patterns to reuse before proposing new code.
 2. **Write the plan doc** to `docs/plans/incomplete/YYYY-MM-DD-<kebab-slug>.md` (create the dirs if missing). Use `plan-template.md` in this skill as the structure.
-3. **Embed the handoff prompt** as the final section of that same doc.
+3. **Embed the handoff prompt** as the final section of that same doc (a template is in `plan-template.md`).
 4. **Echo the handoff prompt** back into the chat so the human can paste it into a new session.
-5. **STOP.** Do not start building. Do not dispatch coding agents. The fresh session does that.
+5. **STOP.** Do not start building. Do not dispatch agents. The fresh Sonnet session does that.
+
+## Resolve environment-dependent facts at authoring time
+
+A Sonnet orchestrator can only act on what the plan states verbatim. Anything that depends on *where* things live — a bare filename, an implied `cd`, `git mv` vs `mv` — fails silently when the executor has to guess, and it improvises something wrong. **Probe each of these while authoring and bake the resolved answer into the plan + handoff:**
+
+- **Reviewer prompt paths.** The two reviewer prompts ship inside this skill's directory. Resolve their **absolute paths now** and embed those exact paths in the handoff — never refer to them by bare filename. Add the rule explicitly: *if the orchestrator cannot read a prompt file at the given path, it STOPS and asks the human — it must NOT synthesize a reviewer prompt inline.* (If the build will run on a different machine than this one, copy the two prompt files into the plan's repo next to the plan and reference those repo-relative paths instead.)
+- **Plan-promotion command.** Run `git check-ignore docs/` while authoring. If `docs/` is git-ignored, the done-signal is plain `mv` — `git mv` errors on ignored paths. Bake the **correct** command (`git mv` or `mv`) into both the per-task loop text in the plan and the handoff. Don't hardcode `git mv` blindly.
+- **Gate / Verify commands that depend on cwd.** If the app lives in a subdirectory, write commands that don't assume the orchestrator's working directory — e.g. `npm --prefix <app> test` rather than a bare `npm test` that only works after a `cd`. Resolve `<app>` now and embed it.
 
 ## Planning principles — front-load what gets expensive late
 
-The costliest failures are important things nobody front-loaded; they surface last. Front-load assumptions, risk, inputs, and the proof bar — into both the plan and the handoff.
-
-- **Keep assumptions visible.** Track confirmed-vs-assumed; an unverified "decision" is an assumption, not a fact. *Trigger:* writing "we'll use X" → confirmed, or just inherited from the brief?
-- **Probe the riskiest assumption first, cheaply.** Order by uncertainty × consequence, not narrative. Put a one-shot live probe of the biggest unknown in the **earliest phase that can run it** — gate it (one real call/query) before code depends on it. *Trigger:* "this whole approach depends on ___" → gate ___ now.
-- **List required inputs up front.** Name what you need from the human (test data, URLs, credentials, samples) in the plan, so the build can't stall mid-run waiting on them.
-- **Match effort to difficulty.** Don't dispatch trivial transcription or wing the hard parts (see tiering). *Trigger:* "more process than this warrants — or less?"
-- **Cut at natural joints.** One task = one clear "done"; don't split a single diff across tasks or lump independent work together.
+- **Keep assumptions visible.** Track confirmed-vs-assumed; an unverified "decision" is an assumption. *Trigger:* writing "we'll use X" → confirmed, or inherited from the brief?
+- **Probe the riskiest assumption first, cheaply.** Put a one-shot live probe of the biggest unknown in the **earliest phase that can run it** — gate it (one real call/query) before code depends on it.
+- **List required inputs up front.** Name what you need from the human (test data, URLs, credentials, samples) in the plan so the build can't stall mid-run.
+- **Match effort to difficulty, but cap it at Sonnet.** If a task genuinely needs more than Sonnet, the whole build belongs in `jb-plan-pro` — don't paper over it with a vague task.
+- **Cut at natural joints.** One task = one clear "done"; don't split a diff across tasks or lump independent work together.
 
 ## Task authoring — tiering
 
-Tag every task `[haiku]`, `[sonnet]`, or `[orchestrator/opus]`.
+Tag every task `[haiku]`, `[sonnet]`, or `[orchestrator]`. **There is no `[opus]` tier** — if you reach for one, switch to `jb-plan-pro`.
 
 | Tier | Gets | Examples |
 |---|---|---|
-| `[haiku]` | Mechanical, fully-specified, zero design decisions | dep adds, config edits, dumb prop-driven components, copy/text edits, file moves, applying a precise diff |
-| `[sonnet]` | Judgment, multi-file coordination, non-trivial logic | core algorithms, integration, route handlers, hooks, anything requiring choices |
-| `[orchestrator/opus]` | Validation only (see below) | running gates, final verification |
+| `[haiku]` | Mechanical, fully-specified, zero design decisions | dep adds, config edits, prop-driven components, copy edits, file moves, applying a precise diff |
+| `[sonnet]` | Judgment, multi-file coordination, non-trivial logic | core logic, integration, route handlers, hooks, anything requiring bounded choices |
+| `[orchestrator]` | Validation + verbatim-content writes only | running gates, writing exact-byte files (scaffolding/config/fixtures), final verification |
 
-**Don't tier verbatim-content files.** If the plan already contains a file's exact bytes (scaffolding, config, fixtures), the orchestrator writes it directly — dispatching pure transcription wastes a cold-start subagent. Dispatch only work that generates code or makes choices.
+**Don't tier verbatim-content files written by the orchestrator.** If the plan already contains a file's exact bytes and *you* (the orchestrator) write it directly, that's `[orchestrator]` — dispatching pure transcription wastes a cold-start subagent.
 
-**Haiku tasks MUST be more explicit than sonnet tasks** (haiku has less reasoning headroom). Every haiku task includes:
-- The **exact file paths** to create/modify.
-- The **exact content or a precise diff** — not a prose description of it.
-- The **exact commands** to run and the **exact expected output**.
-- **Numbered steps**, assuming zero inference.
-- A **STOP condition**: "If anything differs from the above, do not improvise — stop and report back."
+**Verbatim tasks that ARE dispatched are first-class — tag them `[haiku] (verbatim)`.** A task whose entire job is to write exact bytes the plan already contains (append a precise block, transcribe a fixture, apply an exact diff) is *verbatim*. It is reviewed for **byte-identity only** (spec-compliance) and **skips the code-quality review entirely**. A quality reviewer turned loose on locked bytes flags the plan's *own* decisions — class-name contracts, hex literals, intentional cascade order — as "bugs," which traps the orchestrator between two absolutes it cannot jointly satisfy ("bounce on any ❌" vs "never judge diffs yourself"). The verbatim tag is the mechanical escape valve. Distinguish: `[orchestrator]` = you write the bytes, no dispatch, no review; `[haiku] (verbatim)` = a dispatched agent transcribes them and you run a byte-identity spec check only.
+
+**Haiku tasks MUST be more explicit than sonnet tasks.** Every haiku task includes: the **exact file paths**, the **exact content or a precise diff** (not a prose description), the **exact commands** + **expected output**, **numbered steps** assuming zero inference, and a **STOP condition**: "If anything differs from the above, do not improvise — stop and report back."
+
+## Delegated review — the heart of this skill
+
+A Sonnet orchestrator must NOT be the one deciding whether a diff is good. After each task it dispatches **two fresh Sonnet reviewer subagents in order**, and acts only on their verdicts:
+
+1. **Spec-compliance review** — does the code match the task spec (nothing missing, nothing extra)? Use the spec reviewer prompt (reference it by the **absolute path** resolved at authoring time, not a bare filename).
+2. **Code-quality review** (only after spec passes, and **only for non-verbatim tasks**) — is it clean, tested, maintainable? Use the code-quality reviewer prompt (absolute path).
+
+On a ❌ from either reviewer, the orchestrator **bounces the same implementer agent** with the findings and re-reviews; it does not fix the code itself and does not wave issues through. Both reviewers run on **Sonnet** — two focused passes on a small diff catch most issues without an Opus in the loop.
+
+**Scope the verbatim carve-out precisely.** `[haiku] (verbatim)` tasks run **step 1 only** — byte-identity spec-compliance is the whole review; do not run code-quality on them. Every *non-verbatim* task still runs **both** passes, in order — the carve-out must not bleed into skipping quality review on real `[sonnet]`/`[haiku]` work (the code-quality pass is exactly what catches leaking mock state, imprecise selectors, and similar bugs the spec pass misses). When code-quality *does* run and the task carries plan-locked values (fixed names, literals, mandated ordering), pass them into the reviewer's **Plan-locked content** slot so it won't flag the plan's own contract as a defect.
+
+**If a reviewer prompt file can't be read at its path, STOP and ask the human — never synthesize a reviewer prompt inline.** An improvised reviewer defeats the delegation this skill is built on.
+
+This replaces `jb-plan-pro`'s in-orchestrator self-review. State it explicitly in the plan + handoff so the fresh session knows review is delegated, not optional and not self-performed.
+
+## Mechanical gates only
+
+A phase `**Gate:**` MUST be an **exact command + exact expected result** — a string match, a count, an exit code, or a schema-field assertion. **Prose gates are banned** ("verify it works", "check the UI"). A Sonnet orchestrator must never have to interpret ambiguous output. Examples:
+
+```markdown
+**Gate:** `npm test -- upload` → `Tests  7 passed (7)` AND exit 0
+**Gate:** `npx tsc --noEmit` → no output (exit 0)
+**Gate:** `grep -c "edge_cleanup" web/app/api/route.ts` → `2`
+**Gate:** `npm test` → 0 failures AND testsPassing === true   # references a task's schema field
+```
+
+If a check can't be reduced to a command, that's the signal the build belongs in `jb-plan-pro`.
 
 ## Phase execution strategies
 
-Every phase header MUST include ONE execution strategy annotation in the title:
+Every phase header MUST carry ONE strategy annotation: `## Phase N — <title> [parallel|pipeline|sequential]`.
 
-```markdown
-## Phase N — <title> [parallel|pipeline|sequential]
-```
+- **`[parallel]`** — all tasks dispatched at once (each to a fresh agent at its tier); orchestrator waits, then runs the gate. Only the failing task bounces. Use when tasks are independent and share no state.
+- **`[pipeline]`** — tasks run in document order, each validated output fed to the next via `**Receives:**`. Gate runs after the final task. Use for chains ("Task 1 makes types" → "Task 2 uses them"). Every task except the first MUST declare `**Receives:**`.
+- **`[sequential]`** (default if omitted) — one at a time; the orchestrator runs the full delegated-review loop on each before dispatching the next. Use when each task's outcome could change the next.
 
-The annotation tells the orchestrator how to dispatch tasks within the phase. Gate syntax is unchanged: a literal command + expected output.
-
-### [parallel] — Fan-out, barrier at gate
-
-All tasks dispatched simultaneously, each to a fresh agent at its tagged tier. The orchestrator waits for all agents to complete, then runs the phase gate. On failure, only the failing task bounces to a fresh agent — tasks that passed do not re-run.
-
-**Use when:** All tasks are independent. No task consumes output from another task in the same phase. Minimum wall-clock time.
-
-**Constraint:** If two tasks share state, they belong in different phases or a `[pipeline]` phase.
-
-### [pipeline] — Sequential chain, each feeds next
-
-Tasks run one at a time in document order. Each task's validated output is fed as context to the next task via the `**Receives:**` field (see plan-template). The orchestrator runs the gate only after the final task completes. If any task fails, the pipeline stops — downstream tasks are not dispatched.
-
-**Use when:** Tasks form a chain: "Task 1 generates types" → "Task 2 writes migration using those types" → "Task 3 adds queries."
-
-**Constraint:** Each task (except the first) MUST declare a `**Receives:**` field referencing the previous task's schema output.
-
-### [sequential] — One at a time, manual review between
-
-Tasks run one at a time. The orchestrator reviews each diff (two-stage: matches plan? actually works?) before dispatching the next. This is the DEFAULT when no annotation is present — backward compatible with v1.
-
-**Use when:** Each task's output might change what the next task should do. Correctness per-step matters more than speed. Tasks are loosely related but not a strict chain.
-
-### Composing [adversarial]
-
-`[adversarial]` composes with `[parallel]` and `[sequential]`. Example: `## Phase 2 — Auth [adversarial] [parallel]`. See the Adversarial Loop section below.
-
-`[adversarial]` does NOT compose with `[pipeline]` — adversarial rewrites would invalidate downstream task inputs.
-
-### Decision table
-
-| Situation | Use |
-|-----------|-----|
-| Tasks are independent, want max speed | `[parallel]` |
-| Tasks form a chain, output feeds input | `[pipeline]` |
-| Tasks are sequential but loosely coupled | `[sequential]` (or omit) |
-| Task is safety-critical (auth, payments, data) | Add `[adversarial]` |
-
-### Gate field references
-
-Gate conditions can reference schema fields from task outputs:
-
-```markdown
-**Gate:** `npm test -- auth` → 0 failures AND testsPassing === true AND filesCreated.length >= 2
-```
-
-The orchestrator resolves field names from each task's validated schema output. If a referenced field is absent from a task's schema, the orchestrator flags a plan error before dispatching.
-
-## Adversarial loop
-
-The `[adversarial]` annotation wraps each task in a generate → critique → regenerate loop. A dedicated critic agent finds failure modes; findings with confidence ≥ threshold bounce the generator for a targeted retry.
-
-### How it works
-
-```
-Dispatch generator → Generator returns output → Dispatch critic → Critic returns findings with confidence → Gate check:
-  - Any finding ≥ threshold → bounce generator with findings as context → re-dispatch generator
-  - All findings < threshold → pass
-  - Max iterations reached with unresolved findings → stop, surface to human in plan doc
-```
-
-### Phase template additions
-
-Adversarial phases add three fields after the `**Gate:**`:
-
-```markdown
-## Phase N — <title> [adversarial] [parallel]
-**Gate:** `<command>` → `<expected>` AND no critic findings ≥ {Threshold}
-**Critic:** ce-adversarial-reviewer
-**Threshold:** 75
-**Max iterations:** 3
-```
-
-| Field | Purpose | Default |
-|-------|---------|---------|
-| `**Critic:**` | Agent definition for adversarial review | `ce-adversarial-reviewer` |
-| `**Threshold:**` | Minimum confidence for a finding to block the gate | `75` |
-| `**Max iterations:**` | Maximum generate→critique→regenerate cycles per task | `3` |
-
-### Confidence thresholds
-
-| Score | Meaning | Action |
-|-------|---------|--------|
-| 100 | Mechanically constructible — every step verifiable from the diff | Block — bounce generator |
-| 75 | Concrete, reproducible scenario — one step may depend on unconfirmed conditions | Block — bounce generator |
-| 50 | Plausible but one step can't be confirmed from code alone | Note in plan doc, do not block |
-| <25 | Speculative — requires conditions with no evidence | Suppress |
-
-### Critic behavior
-
-The critic receives the task description, the generator's schema output, and the changed file paths. It does NOT receive the full plan doc — prevents plan-confirmation bias.
-
-The critic returns structured output:
-```json
-{
-  "findings": [
-    {
-      "failureScenario": "string",
-      "confidence": 75,
-      "trace": "string",
-      "category": "assumption-violation | composition-failure | cascade | abuse-case"
-    }
-  ],
-  "highestConfidence": 75,
-  "passedThreshold": false
-}
-```
-
-### When to use
-
-**Use `[adversarial]` when** the task touches auth, payments, data mutations, database migrations, external API contracts, PII, or production infrastructure config.
-
-**Skip `[adversarial]` when** the task is UI layout, copy changes, docs, or a mechanical `[haiku]` edit with exact content specified.
-
-### Token cost
-
-Each iteration costs one generator + one critic call. At 3 max iterations, worst case is 6 agent dispatches per task. Weigh against the cost of a bug: for a migration, 6 calls is cheap; for a README update, it's overhead.
+`jb-plan` does **not** support `[adversarial]` — that loop needs confidence-judgment the Sonnet orchestrator shouldn't run. A build that needs it belongs in `jb-plan-pro`.
 
 ## Schema validation
 
-Each task can declare a JSON Schema that the agent's output must conform to. The orchestrator passes this as the `schema` option when dispatching the agent.
+Each task MAY declare a flat JSON Schema its agent's output must conform to: `**Schema:** { "filesCreated": ["string"], "testsPassing": "boolean" }`. Structured returns let the orchestrator check fields mechanically instead of judging prose. Keep schemas flat (max 2 levels), use descriptive names, include a count field when relevant, prefer `boolean` for pass/fail. Gate conditions may reference schema fields by name (`testsPassing === true`); if a gate references a field no task declares, that's a plan error to fix before dispatch. Skip schema only when output is genuinely hard to schematize.
 
-**Note:** Schema enforcement at the tool layer requires the `Workflow` tool's `agent(prompt, {schema: ...})` function. When dispatching via the `Agent` tool directly, the schema serves as a contract for manual validation — the orchestrator checks the agent's output against the schema fields. The plan format is identical either way.
+## The per-task loop (spell this out in the handoff)
 
-### Schema syntax
+Write the orchestrator's loop as a literal algorithm so the Sonnet driver infers nothing:
 
-```markdown
-### Task N — <name> [sonnet]
-**Files:** Create `src/middleware/auth.ts`
-**Schema:** `{ "filesCreated": ["string"], "testsPassing": "boolean", "endpointsSecured": "integer" }`
-```
+1. **Dispatch the implementer** — fresh agent at the task's tier (`[haiku]`/`[sonnet]`), given ONLY that task's section (plus `**Receives:**` context in a pipeline). Pass `**Schema:**` when present.
+2. **Run `**Verify:**`** — the task's smoke command. On failure, bounce the implementer with the output.
+3. **Dispatch the spec reviewer** (spec reviewer prompt at its absolute path, Sonnet). On ❌ → bounce implementer with findings, return to step 2. For `[haiku] (verbatim)` tasks this is a **byte-identity** check and is the *only* review — go straight to step 5 on ✅.
+4. **Dispatch the code-quality reviewer** (code-quality reviewer prompt at its absolute path, Sonnet) — only after spec ✅, and **skip entirely for `[haiku] (verbatim)` tasks**. When it runs and the task has plan-locked values, fill the reviewer's **Plan-locked content** slot. On ❌ → bounce implementer with findings, return to step 2.
+5. **At the phase boundary, run the `**Gate:**` command yourself** and confirm the exact expected output. On failure, bounce the responsible task.
+6. **Flip `- [ ]`→`- [x]`** for the task and **commit** with the task's exact `**Commit:**` message.
+7. **On any surprise:** a doc-backed correction to a planned decision → fix, note it in the plan, continue. **Anything else** — adds a dependency, costs money, changes scope, or needs a judgment call you're unsure of → **STOP and ask the human.** (A Sonnet orchestrator escalates sooner than an Opus one would; when in doubt, stop.)
 
-### Schema design rules
-
-1. **Keep it flat.** Maximum 2 levels of nesting. Deeply nested objects break agent reliability.
-2. **Use descriptive field names.** `filesCreated` not `fc`, `testsPassing` not `tp`.
-3. **Include a count field when relevant.** `endpointsSecured: "integer"` tells you it happened and how many times.
-4. **Boolean for pass/fail.** `dryRunPassed: "boolean"` is the simplest gate signal.
-5. **Use the simplest types that work.** `"string"`, `"boolean"`, `"integer"`, and arrays of strings cover 90% of tasks.
-6. **Skip schema when** the output is hard to schematize (narrative improvements, code quality-only tasks) or manual diff review is sufficient.
-
-### Schema in gates
-
-See "Gate field references" in Phase execution strategies above for syntax and orchestrator behavior.
-
-### Task `**Receives:**` field
-
-In `[pipeline]` phases, each task (except the first) MUST declare what it receives from the previous task:
-
-```markdown
-### Task 4 — Write migration [sonnet]
-**Receives:** Task 3 output — `{ "typesFile": "src/types/db.ts", "entities": ["User"] }`
-**Schema:** `{ "migrationFile": "string", "rollbackFile": "string", "dryRunPassed": "boolean" }`
-```
-
-The orchestrator injects the previous task's output into the next agent's context automatically.
-
-## Orchestrator rules (state these in the plan + handoff)
-
-- The orchestrator **directs subagents and validates gates — it does NOT write feature code itself.** Exception: it writes files whose exact content is in the plan (scaffolding, config, fixtures) directly rather than dispatching them.
-- Between tasks it **reviews the diff in two stages**: (1) does it match the plan? (2) does it actually work?
-- **Proof bar:** nothing is "done" without pasted real output. If a planned decision is unverified, gate it with a live probe instead of trusting it.
-- **On surprises (the handoff states the boundary):** doc-backed corrections to a planned decision → fix, document in the plan, continue. Anything that adds a dependency, costs money, or changes scope → STOP and ask.
-- It **marks tasks complete in the plan MD**: flip `- [ ]` → `- [x]` as each task passes; add a one-line result under each gate. **Commit per task** with the exact message specified. **Batch the bookkeeping** — flip a phase's checkboxes in one pass and commit doc updates per phase, not one edit/commit per box.
-- When **all gates pass**, it **moves the file** `docs/plans/incomplete/<file>` → `docs/plans/complete/<file>` (e.g. `git mv`), as the signal the build is done.
-- On gate failure, bounce the specific task to a fresh agent with the failure output — don't paper over it.
-- **Phase annotations:** `[parallel]` → dispatch all tasks simultaneously. `[pipeline]` → dispatch sequentially, feed each output to the next via `**Receives:**`. `[sequential]` → one at a time with manual diff review between tasks. Omitted annotation defaults to `[sequential]`.
-- **Adversarial phases:** For `[adversarial]` phases, run the generator→critic→regenerate loop per task up to `**Max iterations:**`. Block on findings at or above `**Threshold:**`. Surface unresolved findings to the human.
-- **Schema handling:** When a task has `**Schema:**`, pass it when dispatching the agent. Validate output against schema fields. When a task has no schema, fall back to manual diff review.
-- **Gate field references:** Resolve schema field names in gate conditions (`testsPassing === true`). If a referenced field is absent from any task's schema, flag a plan error before dispatching.
-- **Pipeline handoff:** In `[pipeline]` phases, the `**Receives:**` field tells you which previous task's output to inject. Pass the named schema fields as context to the next agent.
-- **Task verification:** The `**Verify:**` field on each task is a post-implementation smoke test the orchestrator runs before marking the task done — distinct from the phase gate (which gates the phase boundary). Run the verify command after review and before commit.
+When all gates pass, move the plan from `docs/plans/incomplete/` to `docs/plans/complete/` as the done signal — using the command resolved at authoring time (`git mv` normally, plain `mv` if `docs/` is git-ignored).
 
 ## Quick Reference
 
 | Element | Rule |
 |---|---|
+| Orchestrator | **Sonnet** — mechanical: dispatches, runs commands, acts on verdicts; never judges diffs itself |
 | Plan location | `docs/plans/incomplete/YYYY-MM-DD-<slug>.md` → `complete/` when done |
 | Discovery | Explore + AskUserQuestion **before** writing the plan |
-| Risk | Gate the riskiest unknown with a live probe in the earliest phase that can run it |
-| Inputs | List human-provided assets (data/URLs/creds) up front in the plan |
-| Task tags | `[haiku]` / `[sonnet]` / `[orchestrator/opus]`; verbatim-content files → orchestrator writes directly |
-| Haiku tasks | Exact paths, exact code/diff, exact commands, expected output, STOP condition |
-| Phase types | `[parallel]` dispatch all at once / `[pipeline]` chain with handoff / `[sequential]` one at a time with review (default) |
-| Adversarial | `[adversarial]` + `[parallel|sequential]`: generator→critic→regenerate loop per task. `**Critic:**`, `**Threshold:**`, `**Max iterations:**` fields |
-| Schema | `{ "field": "type" }` — flat JSON, max 2 levels. Skip when output is hard to schematize |
-| Gate | `command` + expected output; may reference schema fields (`testsPassing === true`); orchestrator runs it; barrier between phases |
-| Verify | Per-task smoke test the orchestrator runs post-review, pre-commit; distinct from the phase gate |
-| Receives | In `[pipeline]` phases, names the previous task's schema fields fed as context |
-| Completion | Orchestrator flips `[ ]`→`[x]`, commits per task, moves file on all-gates-pass |
-| Handoff | Embedded as final plan section **and** echoed to chat |
+| Task tags | `[haiku]` / `[haiku] (verbatim)` / `[sonnet]` / `[orchestrator]` — **no `[opus]`** (that → `jb-plan-pro`) |
+| Haiku tasks | Exact paths, exact code/diff, exact commands + expected output, STOP condition |
+| Review | **Delegated** to two Sonnet reviewers per task: spec-compliance, then code-quality. Bounce implementer on ❌. **`[haiku] (verbatim)` = spec-compliance only** |
+| Reviewer prompts | Reference by **absolute path** resolved at authoring time. Can't read it → STOP, never improvise inline |
+| Env facts | Probe at authoring time: reviewer-prompt paths, `git check-ignore docs/` (→ `mv` vs `git mv`), cwd-safe gate commands (`npm --prefix <app>`) |
+| Gates | **Exact command + exact result only.** Prose gates banned. May reference schema fields. cwd-independent |
+| Phase types | `[parallel]` / `[pipeline]` (+`Receives:`) / `[sequential]` (default). **No `[adversarial]`** |
+| Schema | Flat JSON, max 2 levels; lets the orchestrator validate mechanically |
+| Verify / Commit | Per-task smoke command + exact commit message |
+| Escalation | Lower bar than high tier — STOP and ask on any non-doc-backed surprise |
 | This session | Author + deliver, then **STOP** — do not build |
 
 ## Common Mistakes
 
-- **Saving the plan flat** (e.g. `docs/foo-plan.md`) instead of `docs/plans/incomplete/<dated-slug>.md`. → Use the lifecycle dirs.
-- **Vague tiers** ("strong/cheap"). → Name `[haiku]`/`[sonnet]` and apply the explicitness rule.
-- **Terse haiku tasks.** → Haiku needs *more* detail than sonnet, not less.
-- **Gates as prose** ("verify it works"). → A literal command + expected output.
-- **Letting the orchestrator code.** → Orchestrator validates and dispatches only.
-- **No completion mechanics.** → Checkboxes flipped, commit-per-task, file moved on done.
-- **Handoff only in chat.** → Embed it in the plan too (the fresh session reads the doc).
-- **Planning on assumptions.** → Explore + ask first; mark what's still unverified and gate it.
-- **A "locked" decision never exercised by a gate** (scope, auth, API shape). → Probe the riskiest unknown in the earliest phase that can run it.
-- **Dispatching verbatim-content files.** → Orchestrator writes exact-byte files itself; dispatch only code needing generation/judgment.
-- **Inputs discovered mid-build.** → List human-provided assets up front in the plan.
-- **Mixing [adversarial] with [pipeline].** → Adversarial rewrites invalidate downstream inputs. Use `[adversarial] [parallel]` or `[adversarial] [sequential]` instead.
-- **Parallel tasks that share state.** → `[parallel]` tasks must be independent. If Task 2 needs Task 1's output, use `[pipeline]` or separate phases.
-- **Pipeline task missing `**Receives:**`.** → Every task in a `[pipeline]` phase (except the first) must declare which fields it receives from the previous task.
-- **Deeply nested schemas.** → Keep schemas flat (max 2 levels). Deep nesting breaks StructuredOutput reliability.
-- **Adversarial on trivial tasks.** → Don't add `[adversarial]` to haiku tasks with exact content, UI layout, or copy changes. The token cost isn't justified.
-- **Gate referencing a missing schema field.** → If the gate says `testsPassing === true` but no task has a `testsPassing` schema field, that's a plan error. The orchestrator catches this before dispatch.
-- **Starting the build.** → Author session STOPS after delivering.
+- **Prose gates.** "Verify it works" → rewrite as a command + expected output, or move the build to `jb-plan-pro`.
+- **A task that secretly needs Opus.** A `[sonnet]` task with hand-wavy "design the…" scope → either decompose it into mechanical pieces or switch skills.
+- **Orchestrator self-review.** This skill delegates review to subagents — don't let the handoff imply the orchestrator judges diffs itself.
+- **Running code-quality on a verbatim task.** A `[haiku] (verbatim)` task gets byte-identity spec review only; a quality pass will flag the plan's own locked bytes as bugs. Skip it.
+- **Skipping the code-quality pass on a *non-verbatim* task.** For real `[sonnet]`/`[haiku]` work both reviews are required, in order — the verbatim carve-out doesn't apply.
+- **Bare reviewer-prompt filenames.** Reference the reviewer prompts by absolute path resolved at authoring time, with a STOP-don't-improvise rule. A bare filename forces the orchestrator to synthesize one.
+- **Hardcoding `git mv` for promotion.** Probe `git check-ignore docs/` while authoring; use plain `mv` if `docs/` is ignored and bake the right command in.
+- **Reaching for `[adversarial]` or `[opus]`.** Neither exists here. Their need = use `jb-plan-pro`.
+- **Terse haiku tasks.** Haiku needs *more* detail than sonnet, not less.
+- **Saving the plan flat** instead of `docs/plans/incomplete/<dated-slug>.md`.
+- **Planning on assumptions.** Explore + ask first; gate the riskiest unknown with a live probe.
+- **Parallel tasks that share state.** `[parallel]` tasks must be independent — use `[pipeline]` or separate phases.
+- **Pipeline task missing `**Receives:**`.** Every pipeline task after the first must declare it.
+- **Starting the build.** The author session STOPS after delivering.
 
 ## Red Flags — STOP
 
-- About to write code / dispatch a coding agent from the authoring session → STOP, you only plan.
-- A haiku task that says "implement X" without exact files/commands → rewrite it explicitly or make it `[sonnet]`.
-- A phase with no runnable gate command → add one.
-- The riskiest assumption sits unprobed until a late phase → pull a cheap live probe of it into the earliest phase that can run it.
-- A `[parallel]` phase where one task references another task's output → split into separate phases or switch to `[pipeline]`.
-- A `[pipeline]` phase with `[adversarial]` → adversarial rewrites break the pipeline chain. Use `[adversarial] [parallel]` or separate the adversarial phase from the pipeline.
-- A `[pipeline]` task without `**Receives:**` → add it or the orchestrator won't know what to pass forward.
-- A schema with 3+ levels of nesting → flatten to max 2. The agent will fail StructuredOutput on deep objects.
-- A gate referencing a schema field that doesn't exist in any task → the orchestrator will flag this as a plan error. Fix the gate or add the field.
+- About to write code / dispatch an agent from the authoring session → STOP, you only plan.
+- A gate you can't express as a command → the build needs `jb-plan-pro`.
+- A task you can't fully specify for Sonnet → decompose it or escalate to `jb-plan-pro`.
+- A handoff that lets the orchestrator skip the two delegated reviews on non-verbatim work → add them back.
+- A haiku task that says "implement X" without exact files/commands → rewrite explicitly or make it `[sonnet]`.
 - Plan saved outside `docs/plans/incomplete/` → move it.
+- Reviewer prompts referenced by bare filename, or no STOP-don't-improvise rule → embed absolute paths and the rule.
+- A verbatim task routed through code-quality review → tag it `[haiku] (verbatim)` and run spec-compliance only.
+- `git mv` baked in without probing `git check-ignore docs/` → resolve `mv` vs `git mv` now.
