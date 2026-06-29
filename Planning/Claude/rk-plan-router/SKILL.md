@@ -1,6 +1,6 @@
 ---
 name: rk-plan-router
-description: Routes a build to the right rk-plan tier (rk-plan / rk-plan-pro / rk-plan-max) before planning starts. Use when the user wants to plan a multi-step build or write a handoff plan but hasn't picked a tier, or asks "which plan should I use", "rk-plan or pro or max", "how big a plan does this need". Picks a tier from a 3-question decision tree, declares the choice with reasoning, and invokes that skill only after the user agrees. Not for executing a plan — only for choosing one.
+description: Routes a build to the right rk-plan tier (rk-plan / rk-plan-pro / rk-plan-max, plus the rk-plan-pro-cotal substrate variant) before planning starts. Use when the user wants to plan a multi-step build or write a handoff plan but hasn't picked a tier, or asks "which plan should I use", "rk-plan or pro or max", "how big a plan does this need". Picks a tier from a 3-question decision tree (plus a substrate check), declares the choice with reasoning, and invokes that skill only after the user agrees. Not for executing a plan — only for choosing one.
 ---
 
 # Pick a rk-plan tier
@@ -23,6 +23,11 @@ If it's a small task you'd just do now, pure research, or same-session work → 
 3. **Otherwise** — medium, well-understood, every gate expressible as an exact command, no task needs more than Sonnet.
    → **`rk-plan`** (Sonnet orchestrator, delegated review).
 
+## Substrate check (only after a pro/max tier matches)
+
+If gate 1 or 2 matched (`rk-plan-max` or `rk-plan-pro`), ask one more thing: **will this be executed on the Cotal mesh + cmux workspaces** (real peers, real git worktrees/branches, real diffs/ports/PRs) rather than ephemeral Agent-tool subagents?
+→ **`rk-plan-pro-cotal`** — the Cotal+cmux substrate variant of the pro tier (Opus team-lead stands up a Cotal peer team in cmux workspaces, lead-owned push board). It's a *substrate* swap, not extra rigor; use it only when the execution environment really is Cotal+cmux. `rk-plan` stays on the plain substrate.
+
 ## How to route
 
 1. If the answer to any gate is unclear, ask the user with **AskUserQuestion** — at most two questions (parallelism? hardest-task difficulty / safety-critical?). Don't interrogate; lean toward `rk-plan` when genuinely ambiguous.
@@ -36,6 +41,7 @@ If it's a small task you'd just do now, pure research, or same-session work → 
 | "I could almost do this myself; every gate is a command" | `rk-plan` |
 | "It's one hard/risky thing and getting it wrong is expensive" | `rk-plan-pro` |
 | "I can list 3+ workstreams running at the same time" | `rk-plan-max` |
+| "...and we're running it on the Cotal mesh in cmux workspaces" | `rk-plan-pro-cotal` |
 
 ## Examples
 
@@ -45,6 +51,7 @@ If it's a small task you'd just do now, pure research, or same-session work → 
 - *"Backfill a column with a transform + rollback path"* → `rk-plan-pro` (single but data-safety-critical).
 - *"Ship a feature across backend + client + IaC at once"* → `rk-plan-max` (concurrent subsystems).
 - *"React 18→19 across 40 packages with long test suites"* → `rk-plan-max` (parallel + monitored gates).
+- *"Rewrite the JWT layer — and run the team as Cotal peers in cmux workspaces"* → `rk-plan-pro-cotal` (pro-grade + Cotal/cmux substrate).
 
 ## Red flags — STOP
 

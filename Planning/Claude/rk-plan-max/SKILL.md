@@ -29,6 +29,8 @@ Use `rk-plan-max` when **at least one** of these holds:
 
 **When NOT to use at all:** medium well-understood builds → `rk-plan`; small tasks you'll just do now; pure research with no build; same-session implementation (`superpowers:subagent-driven-development`).
 
+**Substrate variant:** if this team will run on the **Cotal mesh + cmux workspaces** (real peers via `cotal_spawn`, real git worktrees/branches/diffs/ports/PRs) rather than `TeamCreate` + Agent-tool subagents, use **`rk-plan-pro-cotal`** — same team topology and DAG, retargeted onto the Cotal/cmux substrate with a lead-owned push board.
+
 ## Workflow (authoring session)
 
 1. **Discovery first — never plan on assumptions.** Explore the codebase (read-only; use Explore agents for breadth) AND ask the human clarifying questions (AskUserQuestion) to resolve scope, approach, the workstream decomposition, and unknowns. Find existing utilities/patterns to reuse before proposing new code.
