@@ -63,7 +63,7 @@ Titles should **introduce** a slide, not deliver the speaker's punchline. Avoid:
 - **Write slides as static HTML** — not React, not a `<script>` that generates the DOM, not a `.map()` over a JS array. Static markup keeps slides simple, robust, and hand-editable, and is what `deck-stage` expects as slotted children. Reach for scripting only when a slide genuinely needs behavior static markup can't deliver.
 - Each piece of text in its **own leaf element**; write **repeated structure out** (three `<li>`s, not one rendered three times).
 - **Large type:** titles ≥ 48px. A user's font size means **points** → `px = pt × 1.333` (so "36pt titles" ≈ 48px).
-- **Imagery:** full-bleed photos aspect-**fill**; screenshots and diagrams aspect-**fit**; transparent/fit images go on a contrasting background. Text over an image needs a card, protection gradient, or blur. View every image and decide its treatment — don't drop it in raw.
+- **Imagery:** photos fill, screenshots/diagrams fit, text over an image needs a protection card/gradient — for sourcing and full treatment rules see **rk-imagery**.
 - **No emoji or self-drawn/SVG assets** unless asked; use brand/design-system icons or user-provided images.
 
 ## Variety & parallelism
