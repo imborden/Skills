@@ -221,18 +221,18 @@ content, and description/trigger quality.
 ### Task 5 — `rk-brief`: idea → concept brief `[sonnet]`
 **Files:** Create `Creative/rk-brief/SKILL.md`
 
-- [ ] **Job:** the front of the funnel — turn a raw product idea into a one-page durable
+- [x] **Job:** the front of the funnel — turn a raw product idea into a one-page durable
       brief the rest of the pipeline consumes. Interview-driven (AskUserQuestion), then write
       `product-brief.md` into the **user's project** (never `~/.claude/skills/`).
-- [ ] **Brief sections (mandatory, concrete not adjectival):** problem statement; audience +
+- [x] **Brief sections (mandatory, concrete not adjectival):** problem statement; audience +
       jobs-to-be-done; the riskiest assumption (and how to cheaply test it); success criteria;
       scope cuts (explicit not-doing list); constraints (brand/design system? codebase?
       platform? timeline?); open questions.
-- [ ] **Boundaries:** NOT `superpowers:brainstorming` (that's a conversation technique; this
+- [x] **Boundaries:** NOT `superpowers:brainstorming` (that's a conversation technique; this
       produces a durable artifact); NOT `rk-productionize` (other end of the pipeline); output
       feeds `rk-wireframe`, which should be named as the next step. Triggers: "product brief",
       "concept brief", "flesh out this idea", "before we design".
-- [ ] Verify section: brief exists in the project, every mandatory section filled with
+- [x] Verify section: brief exists in the project, every mandatory section filled with
       specifics, riskiest assumption is testable as written.
 
 **Commit:** `feat(rk-brief): new skill — idea to concept brief`
@@ -240,19 +240,19 @@ content, and description/trigger quality.
 ### Task 6 — `rk-critique`: structured design review `[sonnet]`
 **Files:** Create `Creative/rk-critique/SKILL.md`
 
-- [ ] **Job:** review a **finished design artifact** (deck/doc/prototype/design) against the
+- [x] **Job:** review a **finished design artifact** (deck/doc/prototype/design) against the
       suite's own rules and produce a ranked punch list — NOT a rebuild, NOT live tweaking.
-- [ ] **Process:** load the artifact + any design-system folder + the brief if present;
+- [x] **Process:** load the artifact + any design-system folder + the brief if present;
       capture it with `rk-design/assets/screenshot.mjs` (slides/screens at their native
       size); check — lane consistency (one lane, executed to its extreme), anti-slop bans,
       declared type/space scale actually used (read the CSS custom properties), contrast via
       `rk-design/assets/check-contrast.mjs`, minimum scales, hit targets, motion discipline +
       reduced-motion path, keyboard reachability, copy tone vs CONTENT FUNDAMENTALS when a
       system exists.
-- [ ] **Output:** a ranked punch list — severity · location · defect · concrete fix — written
+- [x] **Output:** a ranked punch list — severity · location · defect · concrete fix — written
       to `<artifact>-critique.md` next to the artifact. Findings must cite evidence (a
       computed value, a screenshot, a grep), not vibes.
-- [ ] **Boundaries:** generic web-UI/a11y checks defer to the `web-design-guidelines` skill
+- [x] **Boundaries:** generic web-UI/a11y checks defer to the `web-design-guidelines` skill
       if available (name it) — this skill owns the suite-specific rules; NOT `rk-tweaks`
       (playing with values); NOT `rk-design-qa` (that compares a **built implementation** to
       the reference — this reviews the design itself). Triggers: "critique this",
@@ -263,19 +263,19 @@ content, and description/trigger quality.
 ### Task 7 — `rk-design-qa`: implementation-fidelity check `[sonnet]`
 **Files:** Create `Creative/rk-design-qa/SKILL.md`
 
-- [ ] **Job:** the last mile — verify the **built product** matches the design reference.
+- [x] **Job:** the last mile — verify the **built product** matches the design reference.
       Inputs: the `design_handoff_<feature>/` spec folder (or the raw artifact) + the running
       implementation (URL or how to launch it).
-- [ ] **Process:** read the spec's tokens/states/behavior sections; screenshot reference and
+- [x] **Process:** read the spec's tokens/states/behavior sections; screenshot reference and
       implementation at the same widths (`screenshot.mjs`); check — semantic tokens actually
       applied (computed styles vs spec values), every specified state present
       (hover/focus/press/loading/error/empty), motion durations/easings preserved,
       reduced-motion path, breakpoints honored per the spec's Responsive section, copy
       matches. Contrast re-check on the implementation with `check-contrast.mjs` (built
       pages drift).
-- [ ] **Output:** a fidelity diff report — spec value · built value · verdict — ranked by
+- [x] **Output:** a fidelity diff report — spec value · built value · verdict — ranked by
       user impact; open items phrased so they can go straight into issues.
-- [ ] **Boundaries:** NOT code review (correctness/security is `/code-review`'s job); NOT
+- [x] **Boundaries:** NOT code review (correctness/security is `/code-review`'s job); NOT
       `rk-critique` (design-stage review of the artifact itself); runs **after** an rk-plan
       build completes. Triggers: "does the build match the design", "fidelity check",
       "verify the implementation against the mockup".
@@ -285,19 +285,19 @@ content, and description/trigger quality.
 ### Task 8 — `rk-imagery`: sourcing + treatment `[sonnet]`
 **Files:** Create `Creative/rk-imagery/SKILL.md`
 
-- [ ] **Job:** the positive path for real imagery, so the pipeline stops dead-ending at
+- [x] **Job:** the positive path for real imagery, so the pipeline stops dead-ending at
       placeholders. rk-design's bans (no SVG-drawn illustration, no fabricated photos)
       **stay in rk-design** — this skill is what to do instead.
-- [ ] **Sourcing order (the spine of the skill):** user-provided assets → brand/design-system
+- [x] **Sourcing order (the spine of the skill):** user-provided assets → brand/design-system
       `assets/` → curated stock with license notes (name concrete sources: Unsplash/Pexels
       class) → generated imagery **only on explicit user opt-in, labeled as generated** →
       `<image-slot>` placeholder as the *last* resort, not the first.
-- [ ] **Treatment rules (moved here from rk-deck; this becomes the canonical home):**
+- [x] **Treatment rules (moved here from rk-deck; this becomes the canonical home):**
       full-bleed photos aspect-**fill**; screenshots/diagrams aspect-**fit**;
       transparent/fit images on a contrasting background; text over an image needs a card,
       protection gradient, or blur; **view every image and decide its treatment** — never
       drop one in raw. Add: alt text required on every meaningful image.
-- [ ] **Boundaries:** NOT icon strategy for design systems (rk-design-system owns
+- [x] **Boundaries:** NOT icon strategy for design systems (rk-design-system owns
       copy-don't-draw icon rules); used *by* rk-deck/rk-doc/rk-prototype mid-build.
       Triggers: "find images", "source photos", "what image goes here", "image treatment".
 
@@ -371,6 +371,11 @@ and for a decision-log instruction; `rk-prototype/SKILL.md` for `rk-critique`;
 
 **Verify:** grep for `rk-imagery`; the detailed gradient/fit/fill sentences appear once in the suite (in rk-imagery), not twice
 **Commit:** `refactor(rk-deck): point imagery treatment at rk-imagery`
+
+> **Orchestrator note (Phase 3):** the rk-imagery critic flagged (conf 80) that rk-deck still
+> holds the verbatim treatment rules, making rk-imagery's "canonical home" claim transiently
+> false. This is expected sequencing — rk-imagery is correct on its own; THIS task is the
+> required remediation. The Verify above is the enforcing gate. Do not skip Task 12.
 
 ---
 
