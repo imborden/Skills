@@ -4,41 +4,48 @@ The rk-* design skills, as a pipeline: how an idea becomes a shipped, verified a
 
 ## Pipeline
 
+The **design pipeline** is linear — each stage consumes the last one's output. It runs
+on top of two layers that are *not* stages: `rk-design` underneath (always loaded), and
+the `rk-plan` execution engine off to the side (wrapped around any step that needs it).
+
 ```
-idea
-  │
-  ▼
-rk-brief              → one-page concept brief
-  │
-  ▼
-rk-wireframe           → lo-fi exploration of the design space
-  │
-  ▼
-rk-design-system       → (optional) brand tokens/components, if this needs to stay on-brand across sessions
-  │
-  ▼
-rk-prototype / rk-deck / rk-doc   → the real build (pick the one matching the artifact)
-  │
-  ▼
-rk-tweaks / rk-llm-prototypes / rk-imagery   → (optional) live controls, real LLM calls, real photos
-  │
-  ▼
-rk-critique            → ranked punch list against the suite's own rules
-  │
-  ▼
-rk-export-html / rk-productionize   → portable single file, or a dev handoff spec
-  │
-  ▼
-rk-plan (in ../Planning/)   → turn the spec into an implementation plan a fresh session executes
-  │
-  ▼
-build (engineering implements it)
-  │
-  ▼
-rk-design-qa           → fidelity check: does the shipped build match the design
+rk-design ───── base layer: process, aesthetic lanes, anti-slop bans, a11y + scales.
+                Every skill below declares "Builds on rk-design" and loads it as background.
+
+DESIGN PIPELINE  (linear — each stage feeds the next)
+
+  idea
+    ▼
+  rk-brief                                   → one-page concept brief
+    ▼
+  rk-wireframe                               → lo-fi exploration of the design space
+    ▼
+  rk-design-system                           → (optional) brand tokens/components, cross-session
+    ▼
+  rk-prototype / rk-deck / rk-doc            → the real build (pick the one matching the artifact)
+    ▼
+  rk-tweaks / rk-llm-prototypes / rk-imagery → (optional) live controls, real LLM calls, real photos
+    ▼
+  rk-critique                                → ranked punch list against the suite's own rules
+    ▼
+  rk-export-html / rk-productionize          → portable single file, or a dev handoff spec
+    ▼
+  build (engineering implements the spec)
+    ▼
+  rk-design-qa                               → fidelity check: does the shipped build match the design
+
+EXECUTION ENGINE  (orthogonal — NOT a pipeline stage)
+
+  rk-plan / rk-plan-pro / rk-plan-max   (in ../Planning/)
+    └─ Wrap around ANY loop above that's big enough to need phases + gates:
+       planning the design work itself, planning the implementation of a spec,
+       or iterating on a fix (build → critique → fix → re-critique). It plugs in
+       wherever orchestration is warranted — it does not sit at the end of the chain.
 ```
 
-`rk-design` is not a stage in this chain — it's the base layer. Every skill above declares "Builds on rk-design" and pulls its process, aesthetic-lane rules, and anti-slop bans from it. Load it as background whenever you touch any of these.
+Only `rk-design-qa` is genuinely terminal (you can't QA a build that doesn't exist yet).
+Everything else is a loop, and `rk-plan` is the engine you drop onto whichever loop is
+big enough to warrant it — including the creation of these very skills.
 
 ## Skills
 
@@ -59,4 +66,4 @@ rk-design-qa           → fidelity check: does the shipped build match the desi
 | `rk-productionize` | You have a finished HTML design and need to hand it to engineers to rebuild it in a real codebase. | `references/spec-template.md` (dev implementation spec) |
 | `rk-design-qa` | After a build is done, verifying the shipped product actually matches its design reference — drift, missing states, broken motion, unhonored breakpoints. | A fidelity diff report (no bundled assets) |
 
-`rk-plan` and its tiers (`rk-plan-pro`, `rk-plan-max`, `rk-plan-router`, `rk-plan-pro-cotal`, `rk-plan-pro-DS`) live in `../Planning/` — a separate suite for turning any spec into an executable build plan, not just design output.
+`rk-plan` and its tiers (`rk-plan-pro`, `rk-plan-max`, `rk-plan-router`, `rk-plan-pro-cotal`, `rk-plan-pro-DS`) live in `../Planning/` — a separate, substrate-agnostic execution suite that orchestrates *any* multi-step build to completion, not just design work. It's the engine referenced as the orthogonal layer above, not a design stage.
