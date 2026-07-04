@@ -75,10 +75,19 @@ placeholder the developer must replace.
 ### 9. Files
 List the HTML/CSS/JS files in the folder and what each contains.
 
-### 10. Open questions
-What the artifact **can't** answer — responsive context, error/empty/loading
-states, permissions, theming, edge cases. List them for product/design rather
-than inventing answers.
+### 10. Responsive behavior
+The viewport story the design declared — fixed-frame, single width, or
+responsive. The breakpoints. What reflows, collapses, or hides at each. Touch
+target sizes.
+
+### 11. Accessibility notes
+Focus order. Labels/roles. Contrast-critical pairs **with their measured
+ratios**. Reduced-motion expectations.
+
+### 12. Open questions
+What the artifact **can't** answer — error/empty/loading states, permissions,
+theming, edge cases. List them for product/design rather than inventing
+answers.
 
 ## After writing
 Ask the user whether they want **screenshots** of the designs included — don't

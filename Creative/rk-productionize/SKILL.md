@@ -80,8 +80,12 @@ and the section-by-section `README.md` template. The load-bearing requirements:
   stubs** (a prototype's inline `<script>` is usually throwaway — say so, and name
   the real wiring/data the developer must supply).
 - **Classify fidelity** (hifi/lofi) at the top, and **list open questions** —
-  responsive context, error/loading/empty states, permissions — rather than
-  inventing answers the artifact can't give.
+  error/loading/empty states, permissions — rather than inventing answers the
+  artifact can't give.
+- **Responsive behavior** — the declared viewport story, breakpoints, and what
+  reflows/collapses/hides at each, plus touch-target sizes.
+- **Accessibility notes** — focus order, labels/roles, contrast-critical pairs
+  with their measured ratios, and reduced-motion expectations.
 
 ## Scope discipline — one complete spec beats an unfinished plan
 
@@ -101,6 +105,10 @@ and the section-by-section `README.md` template. The load-bearing requirements:
 - The design file(s) are **copied into** the folder; no link points outside it or
   to a file you didn't write.
 - Real behavior is separated from demo stubs; open questions are captured.
+- Responsive behavior (viewport story, breakpoints, reflow/collapse, touch
+  targets) is documented.
+- Accessibility notes (focus order, labels/roles, measured contrast ratios,
+  reduced-motion) are documented.
 - Boundary respected: it's a spec — not tasks/tiers/gates (rk-plan), not
   production code.
 - You asked whether to include screenshots — didn't embed them by default.
