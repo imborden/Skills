@@ -35,7 +35,7 @@ Copy these from this skill's **`assets/`** next to your prototype `.html`
 
 | File | Role |
 |---|---|
-| `llm-proxy.mjs` | Zero-dependency Node proxy: serves your page **and** `POST /api/complete` → DeepSeek (OpenAI-compatible) |
+| `llm-proxy.mjs` | Zero-dependency Node proxy: serves your page **and** `POST /api/complete` → auto-detects Anthropic or an OpenAI-compatible endpoint (DeepSeek by default) |
 | `llm.js` | Browser helper exposing `window.llm.complete(...)` |
 | `.env.example` | Template for the key — copy to `.env` |
 | `.gitignore` | Keeps `.env` out of git |
@@ -62,7 +62,7 @@ prompt hardcoded into the server. That's the one-off pattern this skill replaces
 ```bash
 cp llm.js llm-proxy.mjs .env.example .gitignore  <your-prototype-dir>/
 cd <your-prototype-dir>
-cp .env.example .env          # paste your real DeepSeek key into .env
+cp .env.example .env          # paste your real key into .env (Anthropic or DeepSeek)
 node llm-proxy.mjs            # serves http://localhost:8787/
 ```
 
@@ -83,7 +83,10 @@ resolves. Wire any control to the model:
 </script>
 ```
 
-Get a key at <https://platform.deepseek.com>. Defaults to `deepseek-chat` with a
+The proxy auto-detects a provider from `.env`: **Anthropic first** (get a key at
+<https://console.anthropic.com>, defaults to `claude-sonnet-5`) — else an
+OpenAI-compatible key (`LLM_API_KEY`, or its alias `DEEPSEEK_API_KEY`; get one at
+<https://platform.deepseek.com>, defaults to `deepseek-chat`). Either way it's a
 1024-token cap; override in `.env` (`LLM_MODEL`, `LLM_BASE_URL`, `LLM_MAX_TOKENS`,
 `PORT`). Any OpenAI-compatible chat endpoint works.
 
@@ -111,7 +114,7 @@ Get a key at <https://platform.deepseek.com>. Defaults to `deepseek-chat` with a
 
 - API key in the HTML, in a `<script>`, in `llm.js`, or as a `fetch` header in
   the page → it belongs in `.env`, server-side only.
-- The page fetching `api.deepseek.com` / `api.anthropic.com` directly → route it
+- The page fetching `api.anthropic.com` / `api.deepseek.com` directly → route it
   through the proxy.
 - A bespoke per-feature endpoint (`/api/rewrite`, `/api/summarize`) with the
   prompt baked into the server → keep `/api/complete` generic; prompt logic goes

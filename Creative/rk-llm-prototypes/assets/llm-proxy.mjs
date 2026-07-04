@@ -4,19 +4,25 @@
 //
 //   • Serves the files in this directory (so open the prototype at the proxy
 //     origin — no file:// and no CORS headaches).
-//   • Exposes  POST /api/complete  → forwards to a DeepSeek-style, OpenAI-
-//     compatible chat endpoint. The browser only ever talks to localhost.
+//   • Exposes  POST /api/complete  → auto-detects a provider and forwards to
+//     it. The browser only ever talks to localhost.
 //   • The API key is read from a gitignored .env (or the environment). It is
 //     NEVER sent to, or readable by, the page.
+//
+// Provider auto-detect (checked in this order):
+//     1. ANTHROPIC_API_KEY set  → calls the Anthropic Messages API natively.
+//     2. LLM_API_KEY (or its alias DEEPSEEK_API_KEY) set → an OpenAI-
+//        compatible chat/completions endpoint (DeepSeek by default).
 //
 // Run (Node 18+; uses built-in fetch, zero dependencies):
 //     cp .env.example .env   # then paste your real key into .env
 //     node llm-proxy.mjs     # serves http://localhost:8787/
 //
 // Config via .env or environment:
-//     DEEPSEEK_API_KEY   (required)        your key — keep it out of git
-//     LLM_BASE_URL       default https://api.deepseek.com/chat/completions
-//     LLM_MODEL          default deepseek-chat
+//     ANTHROPIC_API_KEY  Anthropic key — if set, Anthropic is used
+//     LLM_API_KEY        OpenAI-compatible key (alias: DEEPSEEK_API_KEY)
+//     LLM_MODEL          default claude-sonnet-5 (Anthropic) / deepseek-chat (OpenAI-compat)
+//     LLM_BASE_URL       default https://api.anthropic.com/v1/messages / https://api.deepseek.com/chat/completions
 //     LLM_MAX_TOKENS     default 1024
 //     PORT               default 8787
 //     STATIC_DIR         default this script's directory
@@ -44,11 +50,26 @@ for (const dir of [process.cwd(), HERE]) {
 }
 
 const PORT = Number(process.env.PORT) || 8787;
-const API_KEY = process.env.DEEPSEEK_API_KEY;
-const BASE_URL = process.env.LLM_BASE_URL || 'https://api.deepseek.com/chat/completions';
-const MODEL = process.env.LLM_MODEL || 'deepseek-chat';
+
+// --- provider auto-detect ---------------------------------------------------
+const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
+const OPENAI_COMPAT_KEY = process.env.LLM_API_KEY || process.env.DEEPSEEK_API_KEY;
+const PROVIDER = ANTHROPIC_KEY ? 'anthropic' : 'openai';
+const PROVIDER_LABEL = PROVIDER === 'anthropic' ? 'Anthropic' : 'OpenAI-compatible';
+const API_KEY = ANTHROPIC_KEY || OPENAI_COMPAT_KEY;
+
+const DEFAULT_BASE_URL = PROVIDER === 'anthropic'
+  ? 'https://api.anthropic.com/v1/messages'
+  : 'https://api.deepseek.com/chat/completions';
+const DEFAULT_MODEL = PROVIDER === 'anthropic' ? 'claude-sonnet-5' : 'deepseek-chat';
+
+const BASE_URL = process.env.LLM_BASE_URL || DEFAULT_BASE_URL;
+const MODEL = process.env.LLM_MODEL || DEFAULT_MODEL;
 const MAX_TOKENS = Number(process.env.LLM_MAX_TOKENS) || 1024;
 const STATIC_DIR = process.env.STATIC_DIR || HERE;
+
+const NO_KEY_MESSAGE = 'No API key set. Set ANTHROPIC_API_KEY, or LLM_API_KEY/DEEPSEEK_API_KEY, ' +
+  'in .env (copy .env.example to .env first).';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -79,45 +100,77 @@ function readBody(req, limit = 2_000_000) {
   });
 }
 
-// Normalize the request into an OpenAI-style messages array.
+// Normalize the request into a provider-agnostic { system, messages } shape.
 // Accepts {prompt: "..."} OR {messages: [...]}, plus optional {system}.
-function toMessages({ prompt, messages, system }) {
-  const out = [];
-  if (system) out.push({ role: 'system', content: system });
-  if (Array.isArray(messages)) out.push(...messages);
-  else if (typeof prompt === 'string') out.push({ role: 'user', content: prompt });
-  return out;
+// A "system" role inside `messages` is pulled out too, since Anthropic
+// requires system as a top-level field rather than a message role.
+function normalize({ prompt, messages, system }) {
+  const input = Array.isArray(messages) ? messages
+    : (typeof prompt === 'string' ? [{ role: 'user', content: prompt }] : []);
+  let sys = system;
+  const rest = [];
+  for (const m of input) {
+    if (m.role === 'system') { if (!sys) sys = m.content; }
+    else rest.push(m);
+  }
+  return { system: sys, messages: rest };
+}
+
+async function callAnthropic({ system, messages, model, max_tokens, temperature }) {
+  const upstream = await fetch(BASE_URL, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': API_KEY,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({ model, max_tokens, system, messages, temperature }),
+  });
+  const data = await upstream.json().catch(() => ({}));
+  if (!upstream.ok) {
+    throw new Error(data?.error?.message || `Upstream returned ${upstream.status}`);
+  }
+  const text = Array.isArray(data?.content)
+    ? data.content.filter((b) => b.type === 'text').map((b) => b.text).join('')
+    : '';
+  return text;
+}
+
+async function callOpenAICompat({ system, messages, model, max_tokens, temperature }) {
+  const withSystem = system ? [{ role: 'system', content: system }, ...messages] : messages;
+  const upstream = await fetch(BASE_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },
+    body: JSON.stringify({ model, messages: withSystem, max_tokens, temperature: temperature ?? 1.0 }),
+  });
+  const data = await upstream.json().catch(() => ({}));
+  if (!upstream.ok) {
+    throw new Error(data?.error?.message || `Upstream returned ${upstream.status}`);
+  }
+  return data?.choices?.[0]?.message?.content ?? '';
 }
 
 async function handleComplete(req, res) {
-  if (!API_KEY) {
-    return sendJSON(res, 500, { error: 'DEEPSEEK_API_KEY is not set. Copy .env.example to .env and add your key.' });
-  }
+  if (!API_KEY) return sendJSON(res, 500, { error: NO_KEY_MESSAGE });
+
   let payload;
   try { payload = JSON.parse(await readBody(req) || '{}'); }
   catch { return sendJSON(res, 400, { error: 'Invalid JSON body.' }); }
 
-  const messages = toMessages(payload);
-  if (!messages.some((m) => m.role !== 'system')) {
+  const { system, messages } = normalize(payload);
+  if (!messages.length) {
     return sendJSON(res, 400, { error: 'Provide a "prompt" string or a non-empty "messages" array.' });
   }
 
+  const call = PROVIDER === 'anthropic' ? callAnthropic : callOpenAICompat;
   try {
-    const upstream = await fetch(BASE_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },
-      body: JSON.stringify({
-        model: payload.model || MODEL,
-        messages,
-        max_tokens: payload.max_tokens || MAX_TOKENS,
-        temperature: payload.temperature ?? 1.0,
-      }),
+    const text = await call({
+      system,
+      messages,
+      model: payload.model || MODEL,
+      max_tokens: payload.max_tokens || MAX_TOKENS,
+      temperature: payload.temperature,
     });
-    const data = await upstream.json().catch(() => ({}));
-    if (!upstream.ok) {
-      return sendJSON(res, 502, { error: data?.error?.message || `Upstream returned ${upstream.status}` });
-    }
-    const text = data?.choices?.[0]?.message?.content ?? '';
     return sendJSON(res, 200, { text });
   } catch (err) {
     return sendJSON(res, 502, { error: `Upstream request failed: ${err.message}` });
@@ -162,6 +215,6 @@ http.createServer((req, res) => {
   if (req.method === 'GET') return serveStatic(req, res);
   sendJSON(res, 405, { error: 'Method not allowed' });
 }).listen(PORT, () => {
-  console.log(`llm-proxy → http://localhost:${PORT}/  (model: ${MODEL})`);
-  if (!API_KEY) console.log('WARNING: DEEPSEEK_API_KEY not set — /api/complete will 500 until you add it to .env');
+  console.log(`llm-proxy → http://localhost:${PORT}/  (provider: ${PROVIDER_LABEL}, model: ${MODEL})`);
+  if (!API_KEY) console.log(`WARNING: ${NO_KEY_MESSAGE} /api/complete will 500 until you add one.`);
 });
