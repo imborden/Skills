@@ -99,14 +99,19 @@ serve: `cd <dir> && python3 -m http.server PORT`). Confirm:
 - Device chrome comes from the frame element (you didn't redraw a status bar).
 - `prefers-reduced-motion` collapses motion (emulate it in DevTools).
 - No console errors except a benign `/favicon.ico` 404 from the test server.
+- **Keyboard-only pass:** tab through the whole flow — every interactive
+  control reachable and operable without a mouse.
+- If rk-design's declared viewport story is "responsive," screenshot at two
+  widths (`assets/screenshot.mjs`) and confirm the layout holds at both.
 
 ## Next — hand off to engineering
 
-Once the prototype is approved and the flow holds together, hand it to
-**rk-productionize** to turn it into a developer implementation spec (screens,
-states, tokens, exact behavior). That spec is the **input** engineers — or
-**rk-plan** — build from; don't start writing production code straight from the
-prototype.
+Once the prototype is approved and the flow holds together, run it through
+**rk-critique** for a ranked punch list and fix what it surfaces. Then hand it
+to **rk-productionize** to turn it into a developer implementation spec
+(screens, states, tokens, exact behavior). That spec is the **input**
+engineers — or **rk-plan** — build from; don't start writing production code
+straight from the prototype.
 
 ## Red flags
 
