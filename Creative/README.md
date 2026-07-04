@@ -67,3 +67,21 @@ big enough to warrant it — including the creation of these very skills.
 | `rk-design-qa` | After a build is done, verifying the shipped product actually matches its design reference — drift, missing states, broken motion, unhonored breakpoints. | A fidelity diff report (no bundled assets) |
 
 `rk-plan` and its tiers (`rk-plan-pro`, `rk-plan-max`, `rk-plan-router`, `rk-plan-pro-cotal`, `rk-plan-pro-DS`) live in `../Planning/` — a separate, substrate-agnostic execution suite that orchestrates *any* multi-step build to completion, not just design work. It's the engine referenced as the orthogonal layer above, not a design stage.
+
+## What you can build with it
+
+The pipeline is design-forward and HTML-native, so it's strongest wherever a real
+interface or artifact is the point. Categories, with the skills that carry each:
+
+| Category | Examples | Skills that carry it |
+| --- | --- | --- |
+| **Web & mobile apps** | Onboarding/signup flows, multi-step forms, dashboards, AI-native apps (chat, rewrite, summarize) | `rk-prototype` (+ `rk-llm-prototypes` for real model calls, `dataviz` for charts) → `rk-productionize` → `rk-plan` |
+| **Websites & marketing** | Landing/launch pages, pricing pages, waitlist/fake-door tests, portfolios, microsites | `rk-design` → `rk-imagery` → `rk-export-html` (one portable offline file) |
+| **Browser extensions** | Popup UIs, side panels, new-tab replacements, in-page overlays | `rk-prototype` (browser-window frame) → `rk-productionize` → `rk-plan` builds the manifest + scripts |
+| **Presentations & docs** | Pitch/board/sales decks, lectures; resumes, one-pagers, memos, reports, white papers | `rk-deck` / `rk-doc` → `rk-export-html` |
+| **Design systems & brand kits** | Token libraries, component kits, a reusable `/{brand}-design` skill | `rk-design-system` |
+| **Interactive / explainer pieces** | Product demos, feature tours, data stories, live configurators | `rk-prototype` / `rk-tweaks` |
+| **Internal tools & validation** | Admin panels, ops dashboards, "should we even build this?" tests | `rk-brief` (force the problem + a cheap test) → `rk-wireframe` → `rk-prototype` |
+
+**Where it's weakest:** pure-backend systems, data pipelines, CLI tools, ML training —
+no design surface for the front half to grab. Skip Creative there and go straight to `rk-plan`.
