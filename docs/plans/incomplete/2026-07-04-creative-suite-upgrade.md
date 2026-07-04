@@ -317,16 +317,16 @@ and for a decision-log instruction; `rk-prototype/SKILL.md` for `rk-critique`;
 ### Task 9 — rk-wireframe: scaffold asset + decision log `[sonnet]`
 **Files:** Create `Creative/rk-wireframe/assets/wireframe-row.js`; Modify `Creative/rk-wireframe/SKILL.md`
 
-- [ ] The only skill violating the suite's own "don't hand-roll the plumbing" rule — it
+- [x] The only skill violating the suite's own "don't hand-roll the plumbing" rule — it
       prescribes a fiddly wrapper with three documented footguns but ships no asset. Build a
       small vanilla custom-element pair (read `Creative/rk-prototype/assets/screen-deck.js`
       first for code conventions): `<wireframe-row>` (the scrolling gray canvas — encodes
       body-scroll, `width:max-content`, no-centering) and `<wireframe-frame label="A — Sidebar nav" width="360">`
       (label + white card, default `min-height` 640). Light-DOM content, ~60–90 lines,
       header-comment usage docs like the sibling assets.
-- [ ] SKILL.md: replace the hand-written scaffold block with copy-the-asset usage (keep one
+- [x] SKILL.md: replace the hand-written scaffold block with copy-the-asset usage (keep one
       sentence on *why* the layout works that way); keep the footguns as red flags.
-- [ ] SKILL.md: add a **decision log** convention to the "Next" section: when the user picks
+- [x] SKILL.md: add a **decision log** convention to the "Next" section: when the user picks
       a direction, append two lines (winner + why, date) to a `design-decisions.md` in the
       project so the rationale survives the session.
 
@@ -336,12 +336,12 @@ and for a decision-log instruction; `rk-prototype/SKILL.md` for `rk-critique`;
 ### Task 10 — rk-prototype: verify hooks + critique handoff `[sonnet]`
 **Files:** Modify `Creative/rk-prototype/SKILL.md`
 
-- [ ] Verify section additions: one **keyboard-only pass** through the flow (every
+- [x] Verify section additions: one **keyboard-only pass** through the flow (every
       interactive control reachable and operable); if rk-design's declared viewport story is
       "responsive", screenshot at two widths and confirm layout holds.
-- [ ] "Next" section: insert `rk-critique` before `rk-productionize` — review the approved
+- [x] "Next" section: insert `rk-critique` before `rk-productionize` — review the approved
       prototype, fix the punch list, *then* spec for handoff.
-- [ ] Keep total growth under ~10 lines.
+- [x] Keep total growth under ~10 lines.
 
 **Verify:** grep for `rk-critique` and `keyboard` in the file
 **Commit:** `feat(rk-prototype): keyboard/responsive verify hooks, critique before handoff`
@@ -349,14 +349,14 @@ and for a decision-log instruction; `rk-prototype/SKILL.md` for `rk-critique`;
 ### Task 11 — rk-productionize: spec-template required sections `[sonnet]`
 **Files:** Modify `Creative/rk-productionize/references/spec-template.md`, `Creative/rk-productionize/SKILL.md`
 
-- [ ] spec-template: add two **required** numbered sections before "Open questions":
+- [x] spec-template: add two **required** numbered sections before "Open questions":
       **Responsive behavior** (the viewport story the design declared; breakpoints; what
       reflows/collapses/hides at each; touch targets) and **Accessibility notes** (focus
       order, labels/roles, contrast-critical pairs with their measured ratios, reduced-motion
       expectations). Renumber the following sections. In "Open questions", delete
       "responsive context" from the example list (it's now a required section, not an open
       question).
-- [ ] SKILL.md: add the two sections to the "What you produce" load-bearing list and the
+- [x] SKILL.md: add the two sections to the "What you produce" load-bearing list and the
       Verify checklist (one line each).
 
 **Verify:** grep the template for `Responsive behavior` and `Accessibility notes` as headings
@@ -365,7 +365,7 @@ and for a decision-log instruction; `rk-prototype/SKILL.md` for `rk-critique`;
 ### Task 12 — rk-deck: imagery dedupe `[sonnet]`
 **Files:** Modify `Creative/rk-deck/SKILL.md`
 
-- [ ] The Imagery bullet in "Slide construction" shrinks to a one-line summary (fill vs fit +
+- [x] The Imagery bullet in "Slide construction" shrinks to a one-line summary (fill vs fit +
       text-protection in ~one clause) plus a pointer: sourcing and full treatment rules live
       in **rk-imagery**. Net-negative diff. Nothing else in the file changes.
 
