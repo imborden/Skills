@@ -20,6 +20,11 @@ Early-stage ideation, flow mapping, "what are our options" moments. **Not** for 
 
 **Next — once a direction is chosen:** if the work is more than a one-off screen, set up **rk-design-system** first to lock tokens, type, and brand so the hi-fi build stays consistent across sessions; *then* build the real thing with **rk-prototype** (interactive) or a hi-fi **rk-design** artifact. For a true one-off, skip the system and go straight to the hi-fi build.
 
+**Decision log:** when the user picks a direction, append two lines to `design-decisions.md` in the project (create it if missing) — the winner and why, plus the date — so the rationale survives the session:
+```
+2026-07-04 — Picked B (Top tabs): sidebar ate too much width on the data-heavy table view.
+```
+
 ## The approach
 
 1. **Interview** (rk-design questions): what's the screen/flow, who uses it, what must it accomplish, what's unresolved.
@@ -36,26 +41,19 @@ Early-stage ideation, flow mapping, "what are our options" moments. **Not** for 
 
 ## Show the options side-by-side
 
-Lay every direction out as **labeled frames in plain HTML** so they compare directly and each stays editable. Let the page body scroll; never `overflow:auto` an inner wrapper, and never center the row (`justify-content:center` / `margin:auto` pushes frames off the left edge where scroll can't reach).
+Lay every direction out as **labeled frames**, loaded via the shared asset — don't hand-roll the wrapper:
 
 ```html
-<div style="min-width:100%; min-height:100vh; width:max-content;
-            box-sizing:border-box; padding:48px; background:#e7e5df">
-  <div style="display:flex; gap:48px; align-items:flex-start">
+<script src="wireframe-row.js"></script>
 
-    <div style="flex:none; width:360px">
-      <div style="font:600 13px/1.4 system-ui; margin-bottom:12px">A — Sidebar nav</div>
-      <div style="background:#fff; border-radius:2px; box-shadow:0 1px 3px rgba(0,0,0,.08);
-                  min-height:640px; padding:20px">…wireframe…</div>
-    </div>
-
-    <!-- B, C, D … each flex:none with a fixed pixel width -->
-
-  </div>
-</div>
+<wireframe-row>
+  <wireframe-frame label="A — Sidebar nav" width="360">…wireframe…</wireframe-frame>
+  <wireframe-frame label="B — Top tabs" width="480">…wireframe…</wireframe-frame>
+  <!-- C, D … as many as needed -->
+</wireframe-row>
 ```
 
-The outer wrapper carries the gray background **and** `width:max-content` (so the gray extends with the scroll). Each frame is `flex:none` at a fixed width: a small label above a white card.
+It works because the page BODY scrolls, the gray canvas is `width:max-content` so it extends with that scroll, and frames lay out left-aligned with no centering — see `Creative/rk-wireframe/assets/wireframe-row.js`.
 
 For many or large options, a tab control beats an endless horizontal row. Offer a few **simple tweaks** (toggle density, swap a nav pattern) so the user can poke at a direction.
 
@@ -65,4 +63,5 @@ For many or large options, a tab control beats an endless horizontal row. Offer 
 - Variants that differ only in color/spacing → make them structurally different
 - Polishing toward hi-fi (real assets, distinctive type, a chosen lane) → that's rk-prototype's job, not this
 - Centering the frame row or scrolling an inner wrapper → frames get cut off; let the body scroll
+- Dropping `width:max-content` from the gray canvas → the fill clips at the viewport edge instead of extending with the scroll
 - Lorem-ipsum everywhere → bars for body, real words only for meaningful labels
