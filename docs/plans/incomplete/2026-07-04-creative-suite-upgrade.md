@@ -92,16 +92,16 @@ then `git add docs/plans/ && git commit` so this plan file is tracked.
 **Files:** Create `Creative/rk-design/assets/check-contrast.mjs`
 **Schema:** `{ "filesCreated": ["string"], "selfTestPassed": "boolean" }`
 
-- [ ] Zero-dependency Node ≥ 18 CLI, same style/tone as the suite's existing assets (read
+- [x] Zero-dependency Node ≥ 18 CLI, same style/tone as the suite's existing assets (read
       `Creative/rk-export-html/assets/inline-html.mjs` first for conventions: header comment
       with usage, no deps, clear stdout).
-- [ ] Usage: `node check-contrast.mjs <color1> <color2> [--large]` → computes the WCAG 2.x
+- [x] Usage: `node check-contrast.mjs <color1> <color2> [--large]` → computes the WCAG 2.x
       contrast ratio, prints `<ratio>  PASS|FAIL (needs 4.5:1)` (3:1 with `--large`), exit 0
       on pass / 1 on fail. Pairwise only — no HTML scanning mode (YAGNI).
-- [ ] Color parsing: `#rgb`/`#rrggbb`, `rgb()/rgba()`, and **`oklch()`** (the suite defines
+- [x] Color parsing: `#rgb`/`#rrggbb`, `rgb()/rgba()`, and **`oklch()`** (the suite defines
       color in oklch — implement OKLab→linear-sRGB→sRGB conversion; clamp out-of-gamut).
       Reject anything else with a clear error.
-- [ ] Include a `--self-test` flag asserting ≥ 4 known ratios (black/white = 21, the two gate
+- [x] Include a `--self-test` flag asserting ≥ 4 known ratios (black/white = 21, the two gate
       pairs above, one oklch case) — the runnable check for the conversion math.
 
 **Verify:** `node Creative/rk-design/assets/check-contrast.mjs --self-test` → `self-test: ok`, exit 0
@@ -111,17 +111,17 @@ then `git add docs/plans/ && git commit` so this plan file is tracked.
 **Files:** Create `Creative/rk-design/assets/screenshot.mjs`
 **Schema:** `{ "filesCreated": ["string"], "probeScreenshotOk": "boolean" }`
 
-- [ ] Zero-dependency Node ≥ 18 CLI wrapping an **installed** Chrome/Chromium — no Playwright,
+- [x] Zero-dependency Node ≥ 18 CLI wrapping an **installed** Chrome/Chromium — no Playwright,
       no Puppeteer. Usage: `node screenshot.mjs <file-or-url> [out.png] [--width N] [--height N] [--wait MS]`.
-- [ ] Binary discovery, first hit wins: `$CHROME_BIN`, then the standard macOS app paths
+- [x] Binary discovery, first hit wins: `$CHROME_BIN`, then the standard macOS app paths
       (Chrome, Chrome Canary, Chromium, Edge, Brave), then `which` lookups for Linux names
       (`google-chrome`, `chromium`, `chromium-browser`). If none found: print a one-line
       actionable message (set `CHROME_BIN=...`) and exit 2 — never a stack trace.
-- [ ] Invoke `--headless=new --disable-gpu --screenshot=<out> --window-size=<w,h>` plus
+- [x] Invoke `--headless=new --disable-gpu --screenshot=<out> --window-size=<w,h>` plus
       `--hide-scrollbars`; `--virtual-time-budget=<wait>` (default 1500 ms) so fonts/JS
       settle. No full-page mode — document in the header comment that tall captures set
       `--height` explicitly (ponytail: named ceiling, upgrade path is a taller window).
-- [ ] File inputs are converted to a `file://` absolute URL. Default output:
+- [x] File inputs are converted to a `file://` absolute URL. Default output:
       `<input-basename>.png` in the cwd. Print the output path on success.
 
 **Verify:** create a scratch `t.html` with visible text; `node Creative/rk-design/assets/screenshot.mjs t.html /tmp/t.png --width 900` → exit 0 and `test -s /tmp/t.png`
@@ -131,7 +131,7 @@ then `git add docs/plans/ && git commit` so this plan file is tracked.
 **Files:** Modify `Creative/rk-llm-prototypes/assets/llm-proxy.mjs`, `Creative/rk-llm-prototypes/assets/.env.example`, `Creative/rk-llm-prototypes/SKILL.md`
 **Schema:** `{ "filesModified": ["string"], "bothProvidersDocumented": "boolean" }`
 
-- [ ] Auto-detect, in priority order: `ANTHROPIC_API_KEY` set → call the **Anthropic Messages
+- [x] Auto-detect, in priority order: `ANTHROPIC_API_KEY` set → call the **Anthropic Messages
       API natively** (`POST https://api.anthropic.com/v1/messages`, headers `x-api-key`,
       `anthropic-version: 2023-06-01`, body `{model, max_tokens, system?, messages}`, reply
       text at `content[0].text`; default model `claude-sonnet-5`). Else `LLM_API_KEY` (with
@@ -139,15 +139,15 @@ then `git add docs/plans/ && git commit` so this plan file is tracked.
       path (default base URL/model unchanged: DeepSeek). Keep zero-dep; keep the
       `/api/complete` contract and `{text}` response shape **identical** so `llm.js` and all
       existing prototypes work unchanged.
-- [ ] Startup log names the detected provider + model. No-key warning and the 500 error body
+- [x] Startup log names the detected provider + model. No-key warning and the 500 error body
       must name both options (`ANTHROPIC_API_KEY` or `LLM_API_KEY`/`DEEPSEEK_API_KEY`).
-- [ ] `.env.example`: two clearly-labeled blocks (Anthropic / OpenAI-compatible), one
+- [x] `.env.example`: two clearly-labeled blocks (Anthropic / OpenAI-compatible), one
       commented-out key line each, and the shared overrides (`LLM_MODEL`, `LLM_BASE_URL`,
       `LLM_MAX_TOKENS`, `PORT`).
-- [ ] `SKILL.md`: update the provider references (Quickstart, key-URL line, defaults
+- [x] `SKILL.md`: update the provider references (Quickstart, key-URL line, defaults
       paragraph, Red flags mentioning `api.deepseek.com`) to describe auto-detect with
       Anthropic first. Keep the skill's length and structure otherwise intact.
-- [ ] If the human provided a real key, one live `curl` through the proxy → model text back
+- [x] If the human provided a real key, one live `curl` through the proxy → model text back
       (optional; do not block the gate on it).
 
 **Verify:** `node --check` on the proxy; boot with `ANTHROPIC_API_KEY=sk-test-fake` → startup log says Anthropic; boot with no key → warning names both options
