@@ -173,25 +173,25 @@ then `git add docs/plans/ && git commit` so this plan file is tracked.
 One file, one coherent edit. The base skill is inherited by every other skill — precision over
 volume; keep total growth under ~35 lines. Changes:
 
-- [ ] **Accessibility (Build approach + Verify).** Build: contrast minimums (4.5:1 body,
+- [x] **Accessibility (Build approach + Verify).** Build: contrast minimums (4.5:1 body,
       3:1 large text/UI on its background), visible focus states on all interactive elements,
       semantic headings/landmarks, keyboard reachability. Verify: run
       `assets/check-contrast.mjs` on the declared ink/paper/accent pairs; one keyboard-tab
       pass. Reference `assets/screenshot.mjs` as the shipped way to execute the existing
       "verify by screenshotting" step in any harness.
-- [ ] **Responsive story (The process).** New step alongside "Declare your system": decide
+- [x] **Responsive story (The process).** New step alongside "Declare your system": decide
       and state the **viewport story** up front — fixed-frame demo, single target width, or
       responsive (with which breakpoints) — and add a red flag: product UI shipped with no
       viewport decision.
-- [ ] **Routing list.** Replace the 5-skill list with a stage-grouped map of all 13 siblings
+- [x] **Routing list.** Replace the 5-skill list with a stage-grouped map of all 13 siblings
       (brief → explore → systematize → build → augment → review → ship/handoff → QA), one
       line each. The four Phase-3 skills don't exist yet — write the lines anyway; Phase 3
       makes them true (the gate for dangling names runs at Phase 5).
-- [ ] **Lane-convergence fix.** Delete "Never converge on the same lane across unrelated
+- [x] **Lane-convergence fix.** Delete "Never converge on the same lane across unrelated
       projects" (unenforceable — sessions have no memory of past picks). Replace with a
       mechanism, e.g.: "If your first-instinct lane is also the *obvious* pick for this
       content type, deliberately weigh the second-best lane before committing."
-- [ ] **Pointers.** One line: charts/dashboards → use the `dataviz` skill if available. One
+- [x] **Pointers.** One line: charts/dashboards → use the `dataviz` skill if available. One
       line in the assets bullet: imagery sourcing/treatment → `rk-imagery`.
 
 **Verify:** the gate's grep set, run against the edited file
