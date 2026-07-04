@@ -391,7 +391,7 @@ and for a decision-log instruction; `rk-prototype/SKILL.md` for `rk-critique`;
 ### Task 13 — `Creative/README.md` pipeline map `[sonnet]`
 **Files:** Create `Creative/README.md`
 
-- [ ] One page: the pipeline diagram
+- [x] One page: the pipeline diagram
       (`idea → rk-brief → rk-wireframe → rk-design-system → rk-prototype/rk-deck/rk-doc →
       rk-tweaks/rk-llm-prototypes/rk-imagery → rk-critique → rk-export-html/rk-productionize →
       rk-plan (Planning/) → build → rk-design-qa`), then a table: skill · one-line "use when" ·
@@ -404,7 +404,7 @@ and for a decision-log instruction; `rk-prototype/SKILL.md` for `rk-critique`;
 ### Task 14 — Cross-reference consistency sweep `[sonnet]`
 **Files:** Modify any `Creative/*/SKILL.md` found inconsistent (expected: zero to three one-line fixes)
 
-- [ ] Read every SKILL.md in `Creative/` end to end (they're short). Check: each skill's
+- [x] Read every SKILL.md in `Creative/` end to end (they're short). Check: each skill's
       NOT-for/Next pointers name skills that exist and point the right way (e.g. wireframe's
       "Next" should now be able to mention rk-brief upstream and critique downstream if
       natural); no stale claims contradicted by this build (e.g. rk-design's old 5-skill
@@ -420,8 +420,8 @@ Exact commands — the orchestrator runs these directly (no dispatch; outside-re
 committed). The 10 pre-existing links were already repaired by the human (verified at
 authoring); only the 4 new skills need links:
 
-- [ ] `for s in rk-brief rk-critique rk-design-qa rk-imagery; do ln -sfn /Users/jeffborden/Documents/Coding/_Skills/Creative/$s ~/.claude/skills/$s; done`
-- [ ] STOP condition: if any `~/.claude/skills/<name>` already exists as a **real directory**
+- [x] `for s in rk-brief rk-critique rk-design-qa rk-imagery; do ln -sfn /Users/jeffborden/Documents/Coding/_Skills/Creative/$s ~/.claude/skills/$s; done`
+- [x] STOP condition: if any `~/.claude/skills/<name>` already exists as a **real directory**
       (not a symlink), do not delete it — stop and report.
 
 **Verify:** the gate's 14-skill loop prints nothing; `readlink ~/.claude/skills/rk-brief` → the `Documents/Coding` path
