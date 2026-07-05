@@ -35,7 +35,7 @@ which are independent (parallel peers) vs. dependent. This drives the roster siz
 
 | Name | Tier | Substrate | Responsibility |
 |---|---|---|---|
-| `team-lead` | Opus | the executing session | Owns gates + lifecycle; writes no feature code; drives cmux CLI; runs the per-task review loop; merge/PR + `git mv` + despawn on done |
+| `team-lead` | Opus | the executing session | Owns gates + lifecycle; writes no feature code; drives cmux CLI; runs the per-task review loop; merge/PR + plan moved to `complete/` + despawn on done |
 | `impl-a` | `[sonnet]` | own cmux workspace | Builds pushed tasks in its worktree |
 | `impl-b` | `[sonnet]`/`[haiku]` | own cmux workspace | Second implementer for parallel workstreams (scale count to parallelism) |
 | `adversarial-critic` | Opus/`[sonnet]` | standing Cotal peer | Pre-critiques the plan; critiques safety-critical task outputs (`adversarial-critic-prompt.md`) |
@@ -55,19 +55,20 @@ workspace.create`s an isolated workspace (worktree + branch) for the owning role
 **Peers do not self-claim — the lead schedules.** The lead **writes no feature code** (only
 verbatim-content files whose exact bytes are in this plan), runs the per-task review loop on the
 real `cmux diff`, runs each phase `**Gate:**` command itself at the barrier, flips `- [ ]`→`- [x]`
-and commits per task, and on all-gates-pass merges/PRs each branch, `git mv`s this file to
-`complete/`, then `cotal_despawn`s every peer and `cmux rpc workspace.close`s every workspace.
+and commits per task, and on all-gates-pass merges/PRs each branch, moves this file to `complete/`
+(with `<git mv | mv — resolved at authoring time via 'git check-ignore docs/'>`), then
+`cotal_despawn`s every peer and `cmux rpc workspace.close`s every workspace.
 
 **Phases are gate barriers** — no Phase N+1 task starts until the lead has run Phase N's gate and
 confirmed its exact output. Within/across phases, the `BlockedBy` DAG governs concurrency. Address
 peers by role/name; peers go idle between turns (normal); coordinate via `cotal_dm`/`cotal_send`.
 
-`[haiku]` = mechanical/fully-specified; `[sonnet]` = judgment/multi-file; `[orchestrator/opus]` =
+`[haiku]` = mechanical/fully-specified; `[sonnet]` = judgment/multi-file; `[orchestrator]` =
 validation + verbatim writes.
 
 ---
 
-## Phase 0 — Environment + team setup [orchestrator/opus]
+## Phase 0 — Environment + team setup [orchestrator]
 
 **Gate:** `cmux ping` succeeds AND `cmux capabilities` shows the lead can call `workspace.create`
 (socket auth OK) AND `cotal_orientation` shows the `spawn` capability AND every roster peer is
@@ -102,6 +103,10 @@ present (`cotal_roster`) AND the plan pre-critique has no unresolved blocking fi
 **Files:** Create/Modify `<exact paths>`
 **Schema:** `{ "filesCreated": ["string"], "testsPassing": "boolean" }`
 <!-- Schema optional; keep flat (max 2 levels). -->
+
+<!-- If the task hard-codes values the plan mandates (fixed names, hex literals, intentional
+     ordering), list them for the quality reviewer's Plan-locked content slot:
+**Plan-locked content:** `<exact names/literals/ordering the reviewer must NOT flag>` -->
 
 - [ ] Step 1: <for haiku: exact content/diff + numbered steps>
 - [ ] Step 2: <exact command to run> → <exact expected output>
@@ -172,8 +177,10 @@ runnable — the team-lead executes this, it doesn't eyeball.
 
 > You are the **Opus team-lead** for <feature>, executing on the **Cotal mesh + cmux**. The full
 > task-by-task plan is at `docs/plans/incomplete/YYYY-MM-DD-<slug>.md` — read it first, in full.
-> Read this skill's `SKILL.md` and the three role cards (`adversarial-critic-prompt.md`,
-> `spec-reviewer-prompt.md`, `code-quality-reviewer-prompt.md`) for the loop details.
+> Read this skill's `SKILL.md` and the three role cards at their absolute paths:
+> `<ABSOLUTE PATH to adversarial-critic-prompt.md>`, `<ABSOLUTE PATH to spec-reviewer-prompt.md>`,
+> `<ABSOLUTE PATH to code-quality-reviewer-prompt.md>`. If you cannot read a card at its path,
+> STOP and ask the human — never synthesize one inline.
 >
 > **Why:** <one-paragraph context + confirmed scope>.
 >
@@ -201,9 +208,11 @@ runnable — the team-lead executes this, it doesn't eyeball.
 > `cotal_dm` → you run `Verify` against the workspace → `spec-reviewer` reads the real `cmux diff`
 > (`spec-reviewer-prompt.md`) → after ✅, `quality-reviewer` (`code-quality-reviewer-prompt.md`) →
 > for safety-critical tasks (`Adversarial: yes`) run the `adversarial-critic` loop, blocking on
-> findings ≥ threshold up to max iterations. On any ❌, bounce the **same implementer** (`cotal_dm`)
-> with the findings and re-run from Verify. **You write no feature code** — only verbatim-content
-> files whose exact bytes are in the plan.
+> findings ≥ threshold up to max iterations. When a task has a `Plan-locked content:` field, pass
+> those values in the quality reviewer's Plan-locked slot. On any ❌, bounce the **same implementer**
+> (`cotal_dm`) with the findings and re-run from Verify — **max 3 bounces per task**, then STOP and
+> surface to the human. **You write no feature code** — only verbatim-content files whose exact
+> bytes are in the plan.
 >
 > **Mesh etiquette:** address peers by role/name; they go idle between turns (normal — don't react
 > to idleness until it blocks you); coordinate via `cotal_dm`/`cotal_send` (a `Receives:` handoff
@@ -211,9 +220,13 @@ runnable — the team-lead executes this, it doesn't eyeball.
 >
 > **Gates are commands, not opinions.** At each phase boundary run the `Gate:` command and confirm
 > the exact expected output before unblocking the next phase. Flip `- [ ]`→`- [x]` and commit per
-> task. When every gate passes, merge/PR each branch, `git mv` this file to
-> `docs/plans/complete/`, then `cotal_despawn` every peer and `cmux rpc workspace.close` every
-> workspace.
+> task — the checkboxes are the resume state, keep them current. When every gate passes, merge/PR
+> each branch, move this file to `docs/plans/complete/` with `<git mv | mv — resolved at authoring
+> time via 'git check-ignore docs/'>`, then `cotal_despawn` every peer and
+> `cmux rpc workspace.close` every workspace.
+>
+> **Branch:** integration commits happen on a feature/integration branch off `<base branch>`, not
+> the base branch itself — confirm/create it before Phase 1.
 >
 > **Hard rules:** <project-specific invariants the agents must not violate>.
 >
@@ -222,6 +235,11 @@ runnable — the team-lead executes this, it doesn't eyeball.
 >
 > **On surprises:** a doc-backed correction to a planned decision → fix, document, continue.
 > Anything that adds a dependency, costs money, or changes scope → STOP and ask the human.
+>
+> **If resuming an interrupted build:** the plan checkboxes + git log + `cotal_roster` + the open
+> cmux workspaces are the state. Reconcile them first (last commit vs last flipped box), respawn
+> missing peers, close or re-attach orphaned workspaces, treat uncommitted in-flight work as
+> untrusted (re-push that task), and re-run the most recent phase's `Gate:` before continuing.
 >
 > Start by reading the plan + grounding docs + role cards, then run Phase 0. Report progress at
 > each gate.

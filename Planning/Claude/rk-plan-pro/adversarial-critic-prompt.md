@@ -2,9 +2,10 @@
 
 In `rk-plan-pro` the critic is **dispatched fresh per `[adversarial]` task** by the Opus
 orchestrator — there is no standing critic and no plan pre-critique (those are the
-star→team upgrade in `rk-plan-max`). Default critic agent: `ce-adversarial-reviewer`;
-override per task with the task's `**Critic:**` field. Hand this card to the critic when
-you dispatch it.
+star→team upgrade in `rk-plan-max`). The critic is a **fresh general-purpose agent given
+this card** — reference it by the absolute path resolved at authoring time; the task's
+`**Critic:**` field may override. Hand this card to the critic when you dispatch it. If
+the card can't be read at its path, STOP and ask the human — never synthesize one inline.
 
 ## The loop (orchestrator-driven, per task)
 

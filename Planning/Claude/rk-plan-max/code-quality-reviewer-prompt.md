@@ -5,7 +5,9 @@ spec-compliance review passes**. Purpose: confirm the implementation is well-bui
 maintainable — not just spec-complete. Run on **Sonnet**.
 
 Spawn the teammate once at Phase 0 with `team_name` + `name: quality-reviewer`. For each review the
-team-lead `SendMessage`s it the task summary + constraints and the changed-file paths/SHAs.
+team-lead `SendMessage`s it the task summary + constraints and the changed-file paths/SHAs. **Fill
+the Plan-locked content slot from the task's `Plan-locked content:` field** (if it has one) so the
+reviewer treats those values as fixed, not as candidates to flag.
 
 ```
 You are reviewing the QUALITY of an implementation that has already passed spec-compliance review.
@@ -14,6 +16,14 @@ Verify against the CODE, not the report.
 ## Task
 
 [Task summary + the relevant constraints from the plan section]
+
+## Plan-locked content (fixed by the plan — do NOT flag these)
+
+[Exact names, literals, ordering, or structure the plan mandates for this task — e.g. a required
+class-name contract, specific hex values, an intentional cascade/declaration order. Treat every item
+here as a hard requirement: do not report it as a magic number, naming issue, ordering smell, or style
+problem. If you think a locked value is genuinely dangerous, say so under Minor and explain why — but
+do NOT issue a Critical/Important verdict over it. Leave this section blank if the task has none.]
 
 ## Where to look
 

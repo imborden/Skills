@@ -26,6 +26,14 @@ Produce a **plan document + embedded handoff prompt** that lets a *fresh* Opus s
 4. **Echo the handoff prompt** back into the chat so the human can paste it into a new session.
 5. **STOP.** Do not start building. Do not dispatch coding agents. The fresh session does that.
 
+## Resolve environment-dependent facts at authoring time
+
+Anything that depends on *where* things live fails silently when the executor has to guess. Probe these while authoring and bake the resolved answers into the plan + handoff:
+
+- **Critic prompt path.** `adversarial-critic-prompt.md` ships inside this skill's directory. Resolve its **absolute path now** and embed it wherever the plan references the critic — never a bare filename. Add the rule explicitly: *if the orchestrator cannot read the prompt card at that path, it STOPS and asks the human — it must NOT synthesize a critic prompt inline.* (If the build runs on a different machine, copy the card into the plan's repo next to the plan and reference that path instead.)
+- **Plan-promotion command.** Run `git check-ignore docs/` while authoring. If `docs/` is git-ignored, the done-signal is plain `mv` — `git mv` errors on ignored paths. Bake the **correct** command into the plan and handoff; don't hardcode `git mv` blindly.
+- **Gate / Verify commands that depend on cwd.** If the app lives in a subdirectory, write commands that don't assume the orchestrator's working directory — e.g. `npm --prefix <app> test` rather than a bare `npm test`. Resolve `<app>` now.
+
 ## Planning principles — front-load what gets expensive late
 
 The costliest failures are important things nobody front-loaded; they surface last. Front-load assumptions, risk, inputs, and the proof bar — into both the plan and the handoff.
@@ -38,13 +46,13 @@ The costliest failures are important things nobody front-loaded; they surface la
 
 ## Task authoring — tiering
 
-Tag every task `[haiku]`, `[sonnet]`, or `[orchestrator/opus]`.
+Tag every task `[haiku]`, `[sonnet]`, or `[orchestrator]`.
 
 | Tier | Gets | Examples |
 |---|---|---|
 | `[haiku]` | Mechanical, fully-specified, zero design decisions | dep adds, config edits, dumb prop-driven components, copy/text edits, file moves, applying a precise diff |
 | `[sonnet]` | Judgment, multi-file coordination, non-trivial logic | core algorithms, integration, route handlers, hooks, anything requiring choices |
-| `[orchestrator/opus]` | Validation only (see below) | running gates, final verification |
+| `[orchestrator]` | Validation only (see below) | running gates, final verification |
 
 **Don't tier verbatim-content files.** If the plan already contains a file's exact bytes (scaffolding, config, fixtures), the orchestrator writes it directly — dispatching pure transcription wastes a cold-start subagent. Dispatch only work that generates code or makes choices.
 
@@ -114,24 +122,28 @@ Adversarial phases add three fields after the `**Gate:**`:
 ```markdown
 ## Phase N — <title> [adversarial] [parallel]
 **Gate:** `<command>` → `<expected>` AND no critic findings ≥ {Threshold}
-**Critic:** ce-adversarial-reviewer
+**Critic:** <ABSOLUTE PATH to adversarial-critic-prompt.md>
 **Threshold:** 75
 **Max iterations:** 3
 ```
 
 | Field | Purpose | Default |
 |-------|---------|---------|
-| `**Critic:**` | Agent (or prompt card) for adversarial review | `ce-adversarial-reviewer` |
+| `**Critic:**` | Prompt card for adversarial review | a fresh general-purpose agent given `adversarial-critic-prompt.md` at the absolute path resolved at authoring time |
 | `**Threshold:**` | Min confidence for a finding to block the gate (100 = mechanically constructible → block; 75 = concrete/reproducible → block; 50 = note, don't block; <25 = suppress) | `75` |
 | `**Max iterations:**` | Max generate→critique→regenerate cycles per task | `3` |
 
 **Use `[adversarial]` when** the task touches auth, payments, data mutations, migrations, external API contracts, PII, or production infra. **Skip it** for UI layout, copy, docs, or mechanical `[haiku]` edits with exact content — the token cost (worst case 6 dispatches/task) isn't justified.
 
+## Bounce caps — no unbounded loops
+
+The adversarial loop is capped by `**Max iterations:**`. The same rule applies to ordinary bounces: a task gets at most **3 bounces** (re-dispatches after a failed diff review or `Verify`), then the orchestrator STOPS and surfaces the findings plus the implementer's last output to the human. An autonomous orchestrator must never ping-pong indefinitely between an implementer and a review it can't satisfy.
+
 ## Schema validation
 
 Each task MAY declare a flat JSON Schema its output must conform to (`**Schema:** { "filesCreated": ["string"], "testsPassing": "boolean" }`) — structured returns let the orchestrator check fields mechanically instead of judging prose. Keep schemas flat (max 2 levels), names descriptive (`filesCreated` not `fc`), include a count field when it helps (`endpointsSecured: "integer"`), and use `boolean` for pass/fail signals; `"string"`, `"boolean"`, `"integer"`, and string arrays cover ~90% of tasks. Skip schema when the output is genuinely hard to schematize (narrative or quality-only work) or manual diff review suffices.
 
-Gate conditions may reference schema fields by name (see "Gate field references" above); a gate referencing a field no task declares is a plan error to fix before dispatch. Enforcement is automatic with the `Workflow` tool's `agent(prompt, {schema})`; via the `Agent` tool directly the schema is a manual-validation contract — same plan format either way.
+Gate conditions may reference schema fields by name (see "Gate field references" above); a gate referencing a field no task declares is a plan error to fix before dispatch. The schema is a manual-validation contract — the orchestrator validates the agent's returned fields against it when the agent reports back.
 
 **Receives (pipeline tasks):** in `[pipeline]` phases every task except the first MUST declare what it receives from the previous task via a `**Receives:**` field; the orchestrator injects that output as context for the next agent automatically.
 
@@ -149,13 +161,15 @@ Gate conditions may reference schema fields by name (see "Gate field references"
 | Discovery | Explore + AskUserQuestion **before** writing the plan |
 | Risk | Gate the riskiest unknown with a live probe in the earliest phase that can run it |
 | Inputs | List human-provided assets (data/URLs/creds) up front in the plan |
-| Task tags | `[haiku]` / `[sonnet]` / `[orchestrator/opus]`; verbatim-content files → orchestrator writes directly |
+| Task tags | `[haiku]` / `[sonnet]` / `[orchestrator]`; verbatim-content files → orchestrator writes directly |
 | Haiku tasks | Exact paths, exact code/diff, exact commands, expected output, STOP condition |
 | Phase types | `[parallel]` dispatch all at once / `[pipeline]` chain with handoff / `[sequential]` one at a time with review (default) |
 | Adversarial | `[adversarial]` + `[parallel|sequential]`: generator→critic→regenerate loop per task. `**Critic:**`, `**Threshold:**`, `**Max iterations:**` fields |
 | Schema | `{ "field": "type" }` — flat JSON, max 2 levels. Skip when output is hard to schematize |
 | Gate | `command` + expected output; may reference schema fields (`testsPassing === true`); orchestrator runs it; barrier between phases |
 | Verify | Per-task smoke test the orchestrator runs post-review, pre-commit; distinct from the phase gate |
+| Env facts | Probe at authoring time: critic-prompt absolute path, `git check-ignore docs/` (→ `mv` vs `git mv`), cwd-safe gate commands |
+| Bounce cap | Max 3 bounces per task (review/Verify), then STOP and surface to the human |
 | Receives | In `[pipeline]` phases, names the previous task's schema fields fed as context |
 | Completion | Orchestrator flips `[ ]`→`[x]`, commits per task, moves file on all-gates-pass |
 | Handoff | Embedded as final plan section **and** echoed to chat |
@@ -180,6 +194,8 @@ Gate conditions may reference schema fields by name (see "Gate field references"
 - **Deeply nested schemas.** → Keep schemas flat (max 2 levels). Deep nesting breaks StructuredOutput reliability.
 - **Adversarial on trivial tasks.** → Don't add `[adversarial]` to haiku tasks with exact content, UI layout, or copy changes. The token cost isn't justified.
 - **Gate referencing a missing schema field.** → If the gate says `testsPassing === true` but no task has a `testsPassing` schema field, that's a plan error. The orchestrator catches this before dispatch.
+- **Hardcoding `git mv` for promotion.** → Probe `git check-ignore docs/` while authoring; use plain `mv` if `docs/` is ignored and bake the right command in.
+- **Naming a critic agent instead of the prompt card.** → The critic is a fresh agent given `adversarial-critic-prompt.md` at its absolute path; a bare agent name may not exist at execution time.
 - **Starting the build.** → Author session STOPS after delivering.
 
 ## Red Flags — STOP

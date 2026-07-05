@@ -32,7 +32,7 @@ loop per task up to `**Max iterations:**`, blocking on findings at or above `**T
 Between tasks it reviews the diff in two stages (matches plan? actually works?), runs the gate command
 itself at each phase boundary, flips `- [ ]`→`- [x]` per task, commits per task, and moves this file
 to `complete/` when all gates pass. On failure, bounce the task to a fresh agent with the failure output.
-`[haiku]` = mechanical/fully-specified; `[sonnet]` = judgment/multi-file; `[orchestrator/opus]` =
+`[haiku]` = mechanical/fully-specified; `[sonnet]` = judgment/multi-file; `[orchestrator]` =
 validation only.
 
 ---
@@ -48,7 +48,7 @@ validation only.
      not just a trivial smoke check — surface bad assumptions before later phases build on them. -->
 
 <!-- For [adversarial] phases, add these three fields after the Gate:
-**Critic:** ce-adversarial-reviewer
+**Critic:** <ABSOLUTE PATH to adversarial-critic-prompt.md>
 **Threshold:** 75
 **Max iterations:** 3 -->
 
@@ -91,7 +91,7 @@ report, do not improvise.">
 <!-- Same annotation options as Phase 1. For adversarial phases:
 ## Phase 2 — <title> [adversarial] [parallel]
 **Gate:** `<command>` → `<expected>` AND no critic findings ≥ **Threshold:** value
-**Critic:** ce-adversarial-reviewer
+**Critic:** <ABSOLUTE PATH to adversarial-critic-prompt.md>
 **Threshold:** 75
 **Max iterations:** 3
 -->
@@ -132,10 +132,11 @@ How to confirm the whole thing works: commands to run, what to observe, tests to
 > `[parallel]` dispatch all tasks at once, `[pipeline]` dispatch sequentially with
 > output feeding the next task, `[sequential]` (default) one at a time with manual
 > review between. `[adversarial]` composes with `[parallel]` or `[sequential]` for
-> generator→critic→regenerate loops — dispatch the critic per task with
-> `adversarial-critic-prompt.md` (give it the task spec + generator output + changed
-> files, not the full plan), run up to `**Max iterations:**`, and block on findings at
-> or above `**Threshold:**`.
+> generator→critic→regenerate loops — dispatch the critic per task with the prompt card
+> at `<ABSOLUTE PATH to adversarial-critic-prompt.md>` (give it the task spec + generator
+> output + changed files, not the full plan), run up to `**Max iterations:**`, and block
+> on findings at or above `**Threshold:**`. If you cannot read the card at that path,
+> STOP and ask the human — never synthesize a critic prompt inline.
 >
 > Tasks with `**Schema:**` expect structured JSON output — pass the schema when
 > dispatching the agent and validate against it. Gate conditions may reference
@@ -148,18 +149,28 @@ How to confirm the whole thing works: commands to run, what to observe, tests to
 > plan? actually works?), then run the task's `**Verify:**` command — a per-task smoke
 > test, distinct from the phase gate — before committing. At each phase boundary, run
 > the gate command yourself and inspect real output; mark the phase done only when it
-> passes. Flip `- [ ]`→`- [x]` and commit per task with the message in the task,
-> batching the checkbox bookkeeping per phase (one pass, not one commit per box). When
-> every gate passes, `git mv` this file to `docs/plans/complete/`. On failure, bounce
-> that task to a fresh agent with the failure output.
+> passes. Flip `- [ ]`→`- [x]` and commit per task with the message in the task — the
+> checkboxes are the resume state, keep them current. When every gate passes, move this
+> file to `docs/plans/complete/` with `<git mv | mv — resolved at authoring time via
+> 'git check-ignore docs/'>`. On failure, bounce that task to a fresh agent with the
+> failure output — **max 3 bounces per task**, then STOP and surface the findings plus
+> the implementer's last output to the human.
 >
 > **Hard rules:** <project-specific invariants the agents must not violate>.
+>
+> **Branch:** before Phase 1, confirm you are on a feature branch for this build —
+> create one if you're on the default branch.
 >
 > **Proof bar:** nothing is "done" without pasted real output; gate any unverified
 > assumption with a live probe rather than trusting it.
 >
 > **On surprises:** doc-backed corrections to a planned decision → fix, document, continue;
 > anything that adds a dependency, costs money, or changes scope → STOP and ask.
+>
+> **If resuming an interrupted build:** the checkboxes + git log are the state. Reconcile
+> them first (last commit vs last flipped box), treat any uncommitted in-flight work as
+> untrusted (re-dispatch that task), and re-run the most recent phase's `Gate:` command
+> before continuing.
 >
 > Start by reading the plan + grounding docs, then begin Phase 1, Task 1. Report
 > progress at each gate.

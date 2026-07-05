@@ -39,6 +39,8 @@ The produced plan MUST name what the *executing* session needs, so the build can
 - **A Cotal space with the `spawn` capability** and the roster roles available (check `cotal_orientation` → capabilities; `cotal_roster` for who's present).
 - **The target git repo** (path), clean working tree, and the base branch.
 - **Exact `cmux rpc` params are resolved at runtime** — the plan names the primitives (`workspace.create`, `workspace.prompt_submit`, `surface.read_text`, `workspace.close`); the executing lead confirms each method's params via `cmux docs api` / `cmux capabilities` before first use rather than trusting a frozen schema here.
+- **Prompt-card paths resolved at authoring time.** The three role cards (`adversarial-critic-prompt.md`, `spec-reviewer-prompt.md`, `code-quality-reviewer-prompt.md`) ship inside this skill's directory. Resolve their **absolute paths now** and embed them in the plan + handoff — never bare filenames. If the lead can't read a card at its path, it STOPS and asks the human — it must NOT synthesize one inline. (If the build runs on a different machine, copy the cards into the plan's repo and reference those paths.)
+- **Plan-promotion command resolved at authoring time.** Run `git check-ignore docs/` while authoring; if `docs/` is ignored, the done-signal is plain `mv` (`git mv` errors on ignored paths). Bake the correct command in.
 
 ## Workflow (authoring session — substrate-free)
 
@@ -70,11 +72,13 @@ Tag every task with a **tier** and an **owner role**.
 |---|---|---|
 | `[haiku]` | Mechanical, fully-specified, zero design decisions | dep adds, config edits, prop-driven components, copy edits, file moves, applying a precise diff |
 | `[sonnet]` | Judgment, multi-file coordination, non-trivial logic | core algorithms, integration, route handlers, hooks, anything requiring choices |
-| `[orchestrator/opus]` | Validation + verbatim writes only | running gates, writing exact-byte files, final verification |
+| `[orchestrator]` | Validation + verbatim writes only | running gates, writing exact-byte files, final verification |
 
 **Owner role** (which roster peer): `**Owner role:** implementer | adversarial-critic | spec-reviewer | quality-reviewer | integration-tester`. The team-lead **pushes** the task to a peer of that role (lead-owned board — see below).
 
 **Haiku tasks MUST be more explicit than sonnet tasks**: exact file paths, exact content or a precise diff (not prose), exact commands + expected output, numbered steps assuming zero inference, and a STOP condition — "if anything differs, stop and report, do not improvise."
+
+**Plan-locked values:** if a task hard-codes values the plan mandates (fixed class names, hex literals, intentional ordering), list them in an optional `**Plan-locked content:**` field so the lead can hand them to the quality reviewer's Plan-locked content slot — otherwise the reviewer will flag the plan's own contract as defects.
 
 **Don't tier verbatim-content files.** If the plan contains a file's exact bytes (scaffolding, config, fixtures), the **team-lead writes it directly** in the integration branch — spinning up a workspace + peer for pure transcription wastes a turn.
 
@@ -90,6 +94,8 @@ The team-lead is a fresh **Opus** session that owns gates and lifecycle. It `cot
 | `spec-reviewer` | `[sonnet]` | standing Cotal peer | Per-task spec-compliance review against the real `cmux diff`. `spec-reviewer-prompt.md`. |
 | `quality-reviewer` | `[sonnet]` | standing Cotal peer | Per-task code-quality review after spec passes. `code-quality-reviewer-prompt.md`. |
 | `integration-tester` | `[sonnet]` | standing Cotal peer | Cross-workstream gates; drives `cmux events` for long-running gates; port/health live probes. |
+
+**Trim the roster to the build.** A single-workstream pro-grade build doesn't need the full roster — team-lead + one implementer + `adversarial-critic` may be enough (the lead runs Verify itself; spec and quality review can collapse into one reviewer peer). The full roster is for multi-workstream builds.
 
 Real Cotal semantics the handoff must state (how the tools actually behave):
 
@@ -145,14 +151,16 @@ For each unblocked task the lead pushes:
 3. **Signal done** — the peer reports completion via `cotal_dm`/channel.
 4. **Verify** — the lead runs the task's `**Verify:**` command against the workspace (use `cmux events` if long). On failure, bounce the implementer with the output.
 5. **Spec review** — `spec-reviewer` reads the real `cmux diff`. On ❌ → bounce implementer, back to step 4.
-6. **Quality review** — `quality-reviewer`, only after spec ✅. On ❌ → bounce implementer, back to step 4.
+6. **Quality review** — `quality-reviewer`, only after spec ✅. When the task carries plan-mandated values (fixed names, literals, ordering), pass them in the reviewer's **Plan-locked content** slot so it won't flag the plan's own contract as defects. On ❌ → bounce implementer, back to step 4.
 7. **Adversarial** (safety-critical only) — `adversarial-critic` loop; block on findings ≥ threshold; bounce up to max iterations; surface unresolved findings to the human.
 8. **Integrate + mark** — merge the branch / open a PR, flip `- [ ]`→`- [x]`, commit with the task's exact `**Commit:**` message, `cmux rpc workspace.close`. Batch checkbox bookkeeping per phase.
 9. **On surprise** — doc-backed correction → fix, note, continue. **Adds a dependency, costs money, or changes scope → STOP and ask the human.**
 
 **Pipeline `Receives:` handoffs may go peer-to-peer via `cotal_dm`** — a genuine affordance the Agent-tool tiers lack; a producer peer can hand its validated output straight to the consumer peer. Phases remain hard gate barriers regardless.
 
-At each **phase boundary**, the lead runs the `**Gate:**` command itself and confirms the exact output before unblocking the next phase. When all gates pass: merge/PR each branch, `git mv` the plan `incomplete/`→`complete/`, then `cotal_despawn` every peer and `cmux rpc workspace.close` every workspace.
+**Bounce cap:** steps 4–7 allow at most **3 bounces per task**; on the third failed re-review, STOP and surface the findings plus the implementer's position to the human. No unbounded loops.
+
+At each **phase boundary**, the lead runs the `**Gate:**` command itself and confirms the exact output before unblocking the next phase. When all gates pass: merge/PR each branch, move the plan `incomplete/`→`complete/` (using the `git mv`-vs-`mv` command resolved at authoring time), then `cotal_despawn` every peer and `cmux rpc workspace.close` every workspace.
 
 ## Quick Reference
 
@@ -163,14 +171,15 @@ At each **phase boundary**, the lead runs the `**Gate:**` command itself and con
 | Board | **lead-owned, push** — plan-doc checkboxes are truth; lead `cotal_anycast`/`cotal_dm` + `workspace.prompt_submit`; no peer self-claim |
 | Plan location | `docs/plans/incomplete/YYYY-MM-DD-<slug>.md` → `complete/` when done |
 | Discovery | Explore + AskUserQuestion + workstream decomposition **before** writing the plan (substrate-free) |
-| Task tags | tier `[haiku]`/`[sonnet]`/`[orchestrator/opus]` **and** `**Owner role:**` |
+| Task tags | tier `[haiku]`/`[sonnet]`/`[orchestrator]` **and** `**Owner role:**` |
 | DAG | `**BlockedBy:**` edges; phases are gate barriers; board may grow mid-build via the lead |
 | Isolation | each implementer in its own cmux workspace; integrate (merge/PR) at gate barriers |
 | Review | `spec-reviewer` then `quality-reviewer` per task, reading the real `cmux diff`; bounce implementer on ❌ |
 | Adversarial | standing critic peer; pre-critique the plan; mandatory on auth/payments/data/migrations/PII |
 | Gates | exact command + expected result; `cmux diff`/ports for assertions; `cmux events` for long gates (success *and* failure signals) |
 | Handoff payload | `cmux rpc workspace.prompt_submit` (dispatch), `cotal_dm`/`cotal_anycast` (coordinate), `Receives:` may go peer-to-peer |
-| Lifecycle | merge/PR + `git mv` on all-gates-pass, then `cotal_despawn` + `workspace.close` per peer |
+| Lifecycle | merge/PR + plan moved to `complete/` on all-gates-pass (resolved `git mv`/`mv`), then `cotal_despawn` + `workspace.close` per peer |
+| Bounce cap | Max 3 bounces per task (Verify/spec/quality/adversarial), then STOP and surface to the human |
 | Environment | socket auth (`CMUX_SOCKET_PASSWORD` / `socketControlMode`), Cotal `spawn` capability, repo path — front-loaded; Gate 0 verifies |
 | This session | Author + deliver, then **STOP** — no spawning, no cmux calls, no build |
 
@@ -187,8 +196,8 @@ At each **phase boundary**, the lead runs the `**Gate:**` command itself and con
 - **Forgetting socket auth.** `access_mode: cmuxOnly` blocks external `cmux rpc`. Require `CMUX_SOCKET_PASSWORD` / `socketControlMode` in Required inputs; verify in Gate 0.
 - **No plan pre-critique.** A bad DAG caught at Phase 3 is far more expensive than at Phase 0. Run the critic peer on the plan first.
 - **Critic gets the full plan doc.** Biases it toward confirming the plan. Give it the task spec, output, and the real `cmux diff`.
-- **Team never shut down.** Idle peers and open workspaces linger. After `git mv`, `cotal_despawn` + `workspace.close` each.
-- **Prose gates / planning on assumptions / terse haiku tasks / plan saved flat.** Same family rules — exact-command gates, explore-and-ask first, haiku needs *more* detail, save under `docs/plans/incomplete/`.
+- **Team never shut down.** Idle peers and open workspaces linger. After moving the plan to `complete/`, `cotal_despawn` + `workspace.close` each.
+- **Prose gates / planning on assumptions / terse haiku tasks / plan saved flat / hardcoded `git mv` / bare prompt-card filenames.** Same family rules — exact-command gates, explore-and-ask first, haiku needs *more* detail, save under `docs/plans/incomplete/`, resolve `mv` vs `git mv` and the cards' absolute paths at authoring time.
 - **Starting the build.** The author session STOPS after delivering.
 
 ## Red Flags — STOP

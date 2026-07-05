@@ -26,7 +26,7 @@ If it's a small task you'd just do now, pure research, or same-session work → 
 ## Substrate check (only after a pro/max tier matches)
 
 If gate 1 or 2 matched (`rk-plan-max` or `rk-plan-pro`), ask one more thing: **will this be executed on the Cotal mesh + cmux workspaces** (real peers, real git worktrees/branches, real diffs/ports/PRs) rather than ephemeral Agent-tool subagents?
-→ **`rk-plan-pro-cotal`** — the Cotal+cmux substrate variant of the pro tier (Opus team-lead stands up a Cotal peer team in cmux workspaces, lead-owned push board). It's a *substrate* swap, not extra rigor; use it only when the execution environment really is Cotal+cmux. `rk-plan` stays on the plain substrate.
+→ **`rk-plan-pro-cotal`** — the Cotal+cmux substrate variant of the pro/max tiers (Opus team-lead stands up a Cotal peer team in cmux workspaces, lead-owned push board; trim the roster for single-workstream builds). It's a *substrate* swap, not extra rigor; use it only when the execution environment really is Cotal+cmux. `rk-plan` stays on the plain substrate.
 
 ## How to route
 

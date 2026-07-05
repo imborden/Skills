@@ -39,6 +39,8 @@ itself. It does **not** judge diffs in its own head. After each task it runs the
 4. Dispatch the **code-quality reviewer** (`<ABSOLUTE PATH to code-quality-reviewer-prompt.md>`, Sonnet), only after spec ✅, and **skip entirely for `[haiku] (verbatim)` tasks**. When it runs and the task has plan-locked values, fill the reviewer's **Plan-locked content** slot. On ❌ → bounce, back to step 2.
 5. Flip `- [ ]`→`- [x]` and commit with the task's exact `**Commit:**` message.
 
+**Bounce cap:** steps 2–4 allow at most **3 bounces per task**; on the third failure, STOP and ask the human.
+
 > If either reviewer prompt cannot be read at the path above, **STOP and ask the human** — do NOT synthesize a reviewer prompt inline.
 
 At each **phase boundary**, run the `**Gate:**` command yourself and confirm the exact expected output before
@@ -145,9 +147,9 @@ tests to pass. Keep it runnable — the orchestrator executes this, it doesn't e
 > dispatch the **spec reviewer** (`<ABSOLUTE PATH to spec-reviewer-prompt.md>`), then — only
 > after it passes, and only for **non-verbatim** tasks — the **code-quality reviewer**
 > (`<ABSOLUTE PATH to code-quality-reviewer-prompt.md>`). Both reviewers run on Sonnet. On
-> any ❌, bounce the same implementer with the findings and re-run from Verify. You only
-> write verbatim-content files yourself when their exact bytes are in the plan and tagged
-> `[orchestrator]`.
+> any ❌, bounce the same implementer with the findings and re-run from Verify — **max 3
+> bounces per task**, then STOP and ask the human. You only write verbatim-content files
+> yourself when their exact bytes are in the plan and tagged `[orchestrator]`.
 >
 > **Verbatim review carve-out:** a `[haiku] (verbatim)` task gets the spec reviewer ONLY
 > (a byte-identity check) and skips code-quality — that reviewer would otherwise flag the
@@ -175,6 +177,9 @@ tests to pass. Keep it runnable — the orchestrator executes this, it doesn't e
 >
 > **Hard rules:** <project-specific invariants the agents must not violate>.
 >
+> **Branch:** before Phase 1, confirm you are on a feature branch for this build —
+> create one if you're on the default branch.
+>
 > **Proof bar:** nothing is "done" without pasted real command output; gate any unverified
 > assumption with a live probe rather than trusting it.
 >
@@ -183,6 +188,11 @@ tests to pass. Keep it runnable — the orchestrator executes this, it doesn't e
 > a dependency, costs money, changes scope, or needs a judgment call you're unsure of →
 > STOP and ask. If a task turns out to need Opus-level reasoning or adversarial review,
 > STOP and tell the human this build should move to `rk-plan-pro`.
+>
+> **If resuming an interrupted build:** the checkboxes + git log are the state. Reconcile
+> them first (last commit vs last flipped box), treat any uncommitted in-flight work as
+> untrusted (re-dispatch that task), and re-run the most recent phase's `Gate:` command
+> before continuing.
 >
 > Start by reading the plan + grounding docs, then begin Phase 1, Task 1. Report progress
 > at each gate.

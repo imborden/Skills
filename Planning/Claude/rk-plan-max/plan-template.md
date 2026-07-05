@@ -29,7 +29,7 @@ roster size and the `BlockedBy` DAG below.
 
 | Name | Tier | Responsibility |
 |---|---|---|
-| `team-lead` | Opus | Owns gates + lifecycle; writes no feature code; runs the per-task review loop; `git mv` + shutdown on done |
+| `team-lead` | Opus | Owns gates + lifecycle; writes no feature code; runs the per-task review loop; plan moved to `complete/` + shutdown on done |
 | `impl-a` | `[sonnet]` | Claims and builds tasks in its own worktree |
 | `impl-b` | `[sonnet]`/`[haiku]` | Second implementer for parallel workstreams (scale count to parallelism) |
 | `adversarial-critic` | Opus/`[sonnet]` | Pre-critiques the plan; critiques safety-critical task outputs (`adversarial-critic-prompt.md`) |
@@ -48,23 +48,27 @@ Teammates **self-claim unblocked tasks in ID order** (`TaskUpdate owner`) and bu
 each implementer in its own worktree (`isolation:"worktree"`). The lead **writes no feature
 code** (only verbatim-content files whose exact bytes are in this plan), runs the per-task
 review loop, runs each phase `**Gate:**` command itself at the barrier, flips
-`- [ ]`→`- [x]` and commits per task, and on all-gates-pass `git mv`s this file to
-`complete/` and sends each teammate a `shutdown_request`.
+`- [ ]`→`- [x]` and commits per task, and on all-gates-pass moves this file to
+`complete/` (with `<git mv | mv — resolved at authoring time via 'git check-ignore docs/'>`)
+and sends each teammate a `shutdown_request`.
 
 **Phases are gate barriers** — no task in Phase N+1 starts until the lead has run Phase N's
 gate and confirmed its exact output. Within/across phases, the `BlockedBy` DAG governs
 concurrency. Refer to teammates by **name**; teammates go idle between turns (normal);
 communicate only via `SendMessage`.
 
-`[haiku]` = mechanical/fully-specified; `[sonnet]` = judgment/multi-file; `[orchestrator/opus]` =
+`[haiku]` = mechanical/fully-specified; `[sonnet]` = judgment/multi-file; `[orchestrator]` =
 validation + verbatim writes.
 
 ---
 
-## Phase 0 — Team setup [orchestrator/opus]
+## Phase 0 — Team setup [orchestrator]
 
-**Gate:** team config at `~/.claude/teams/<team>/config.json` lists every roster member AND the board is populated with every Phase 1+ task (TaskList shows them).
+**Gate:** every roster member responds to a `SendMessage` ping AND `TaskList` shows every Phase 1+ task with its `BlockedBy` edges set AND the plan pre-critique has no unresolved blocking finding.
 
+- [ ] Verify the substrate: confirm `TeamCreate`/`TaskList`/`SendMessage` are available in this
+      harness. If `TeamCreate` is missing, STOP — this build belongs in `rk-plan-pro` or
+      `rk-plan-pro-cotal`.
 - [ ] `TeamCreate` with `team_name: <slug>`.
 - [ ] Spawn each roster member via the `Agent` tool with `team_name` + `name` (implementers with `isolation:"worktree"`).
 - [ ] `TaskCreate` every task below, setting `BlockedBy` edges via `TaskUpdate`.
@@ -86,6 +90,10 @@ validation + verbatim writes.
 **Files:** Create/Modify `<exact paths>`
 **Schema:** `{ "filesCreated": ["string"], "testsPassing": "boolean" }`
 <!-- Schema optional; keep flat (max 2 levels). -->
+
+<!-- If the task hard-codes values the plan mandates (fixed names, hex literals, intentional
+     ordering), list them for the quality reviewer's Plan-locked content slot:
+**Plan-locked content:** `<exact names/literals/ordering the reviewer must NOT flag>` -->
 
 - [ ] Step 1: <for haiku: exact content/diff + numbered steps>
 - [ ] Step 2: <exact command to run> → <exact expected output>
@@ -159,8 +167,10 @@ executes this, it doesn't eyeball.
 >
 > **Also read for grounding:** <key files/docs the build depends on>.
 >
-> **Set up the team (Phase 0):** run `TeamCreate` (team_name `<slug>`), then spawn the
-> roster via the `Agent` tool with `team_name` + a stable `name` — implementers with
+> **Set up the team (Phase 0):** first confirm `TeamCreate`/`TaskList`/`SendMessage` exist
+> in this harness — if `TeamCreate` is missing, STOP and tell the human this build belongs
+> in `rk-plan-pro` or `rk-plan-pro-cotal`. Then run `TeamCreate` (team_name `<slug>`), spawn
+> the roster via the `Agent` tool with `team_name` + a stable `name` — implementers with
 > `isolation:"worktree"`. `TaskCreate` every task and set `BlockedBy` edges with
 > `TaskUpdate`. Then have `adversarial-critic` pre-critique this plan + DAG and resolve
 > any blocking finding before Phase 1.
@@ -174,11 +184,16 @@ executes this, it doesn't eyeball.
 >
 > **Per task, run the loop:** the owning teammate builds → you run `Verify` (use `Monitor`
 > for long suites; it must emit success AND failure signals) → dispatch `spec-reviewer`
-> (`spec-reviewer-prompt.md`) → after ✅, `quality-reviewer` (`code-quality-reviewer-prompt.md`)
-> → for safety-critical tasks (`Adversarial: yes`) run the `adversarial-critic` loop, blocking
-> on findings ≥ threshold up to max iterations. On any ❌, bounce the **same implementer** with
-> the findings and re-run from Verify. **You write no feature code** — only verbatim-content
-> files whose exact bytes are in the plan.
+> (card at `<ABSOLUTE PATH to spec-reviewer-prompt.md>`) → after ✅, `quality-reviewer`
+> (card at `<ABSOLUTE PATH to code-quality-reviewer-prompt.md>`; when the task has a
+> `Plan-locked content:` field, pass those values in the reviewer's Plan-locked slot)
+> → for safety-critical tasks (`Adversarial: yes`) run the `adversarial-critic` loop
+> (card at `<ABSOLUTE PATH to adversarial-critic-prompt.md>`), blocking on findings ≥
+> threshold up to max iterations. On any ❌, bounce the **same implementer** with the
+> findings and re-run from Verify — **max 3 bounces per task**, then STOP and surface to
+> the human. If you cannot read a role card at its path, STOP and ask the human — never
+> synthesize one inline. **You write no feature code** — only verbatim-content files
+> whose exact bytes are in the plan.
 >
 > **Team etiquette:** refer to teammates by **name**; they go idle between turns (normal —
 > don't react to idleness until it blocks you); communicate only via `SendMessage` (plain
@@ -186,8 +201,13 @@ executes this, it doesn't eyeball.
 >
 > **Gates are commands, not opinions.** At each phase boundary run the `Gate:` command and
 > confirm the exact expected output before unblocking the next phase. Flip `- [ ]`→`- [x]`
-> and commit per task with the message in the task. When every gate passes, `git mv` this
-> file to `docs/plans/complete/`, then send each teammate `{type:"shutdown_request"}`.
+> and commit per task with the message in the task — the checkboxes are the resume state,
+> keep them current. When every gate passes, move this file to `docs/plans/complete/` with
+> `<git mv | mv — resolved at authoring time via 'git check-ignore docs/'>`, then send each
+> teammate `{type:"shutdown_request"}`.
+>
+> **Branch:** integration commits happen on a feature branch — confirm/create one before
+> Phase 1 (implementer worktrees branch from it).
 >
 > **Hard rules:** <project-specific invariants the agents must not violate>.
 >
@@ -196,5 +216,10 @@ executes this, it doesn't eyeball.
 >
 > **On surprises:** a doc-backed correction to a planned decision → fix, document, continue.
 > Anything that adds a dependency, costs money, or changes scope → STOP and ask the human.
+>
+> **If resuming an interrupted build:** the plan checkboxes + git log + `TaskList` + existing
+> worktrees are the state. Reconcile them first (last commit vs last flipped box vs board
+> status), respawn missing teammates, treat uncommitted in-flight work as untrusted
+> (re-dispatch that task), and re-run the most recent phase's `Gate:` before continuing.
 >
 > Start by reading the plan + grounding docs, then run Phase 0. Report progress at each gate.

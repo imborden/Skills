@@ -16,7 +16,13 @@ Copy a skill's folder into your Claude skills directory:
 cp -r Creative/rk-design ~/.claude/skills/
 ```
 
-Each skill is the folder that contains the `SKILL.md`. Copy as many as you want, then restart your Claude Code session and the skill is available.
+Or symlink it, so the repo stays the single source of truth and installed skills never drift from it:
+
+```bash
+ln -s "$(pwd)/Creative/rk-design" ~/.claude/skills/
+```
+
+Each skill is the folder that contains the `SKILL.md`. Install as many as you want, then restart your Claude Code session and the skill is available.
 
 ## Creative
 
@@ -45,6 +51,7 @@ Turn a build into a written plan a fresh session can execute by dispatching suba
 | `rk-plan` | Medium builds driven by a Sonnet orchestrator. |
 | `rk-plan-pro` | High-complexity or safety-critical builds, run by an Opus orchestrator with adversarial critique. |
 | `rk-plan-max` | Mission-critical or large-scale builds run by a persistent team of agents. |
+| `rk-plan-pro-cotal` | High-complexity builds executed on the Cotal peer mesh + cmux workspaces (real worktrees, diffs, ports/PRs) instead of Agent-tool subagents. |
 | `rk-plan-pro-DS` | The `rk-plan` approach rebuilt for a DeepSeek V4 Pro orchestrator. |
 
 ## Writing

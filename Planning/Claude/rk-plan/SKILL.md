@@ -74,7 +74,7 @@ A Sonnet orchestrator must NOT be the one deciding whether a diff is good. After
 1. **Spec-compliance review** — does the code match the task spec (nothing missing, nothing extra)? Use the spec reviewer prompt (reference it by the **absolute path** resolved at authoring time, not a bare filename).
 2. **Code-quality review** (only after spec passes, and **only for non-verbatim tasks**) — is it clean, tested, maintainable? Use the code-quality reviewer prompt (absolute path).
 
-On a ❌ from either reviewer, the orchestrator **bounces the same implementer agent** with the findings and re-reviews; it does not fix the code itself and does not wave issues through. Both reviewers run on **Sonnet** — two focused passes on a small diff catch most issues without an Opus in the loop.
+On a ❌ from either reviewer, the orchestrator **bounces the same implementer agent** with the findings and re-reviews; it does not fix the code itself and does not wave issues through. Both reviewers run on **Sonnet** — two focused passes on a small diff catch most issues without an Opus in the loop. **Bounces are capped: max 3 per task** across Verify/spec/quality failures — on the third failed re-review, STOP and surface the findings plus the implementer's last output to the human. No unbounded loops.
 
 **Scope the verbatim carve-out precisely.** `[haiku] (verbatim)` tasks run **step 1 only** — byte-identity spec-compliance is the whole review; do not run code-quality on them. Every *non-verbatim* task still runs **both** passes, in order — the carve-out must not bleed into skipping quality review on real `[sonnet]`/`[haiku]` work (the code-quality pass is exactly what catches leaking mock state, imprecise selectors, and similar bugs the spec pass misses). When code-quality *does* run and the task carries plan-locked values (fixed names, literals, mandated ordering), pass them into the reviewer's **Plan-locked content** slot so it won't flag the plan's own contract as a defect.
 
@@ -121,6 +121,8 @@ Write the orchestrator's loop as a literal algorithm so the Sonnet driver infers
 6. **Flip `- [ ]`→`- [x]`** for the task and **commit** with the task's exact `**Commit:**` message.
 7. **On any surprise:** a doc-backed correction to a planned decision → fix, note it in the plan, continue. **Anything else** — adds a dependency, costs money, changes scope, or needs a judgment call you're unsure of → **STOP and ask the human.** (A Sonnet orchestrator escalates sooner than an Opus one would; when in doubt, stop.)
 
+**Bounce cap:** steps 2–4 allow at most **3 bounces per task**; hitting the cap → STOP and ask the human.
+
 When all gates pass, move the plan from `docs/plans/incomplete/` to `docs/plans/complete/` as the done signal — using the command resolved at authoring time (`git mv` normally, plain `mv` if `docs/` is git-ignored).
 
 ## Quick Reference
@@ -140,6 +142,7 @@ When all gates pass, move the plan from `docs/plans/incomplete/` to `docs/plans/
 | Schema | Flat JSON, max 2 levels; lets the orchestrator validate mechanically |
 | Verify / Commit | Per-task smoke command + exact commit message |
 | Escalation | Lower bar than high tier — STOP and ask on any non-doc-backed surprise |
+| Bounce cap | Max 3 bounces per task (Verify/spec/quality), then STOP and ask |
 | This session | Author + deliver, then **STOP** — do not build |
 
 ## Common Mistakes

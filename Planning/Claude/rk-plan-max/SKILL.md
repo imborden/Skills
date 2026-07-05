@@ -40,6 +40,14 @@ Use `rk-plan-max` when **at least one** of these holds:
 5. **Echo the handoff prompt** back into the chat so the human can paste it into a new Opus session.
 6. **STOP.** Do not create a team. Do not spawn teammates. Do not build. The fresh session does all of that.
 
+## Resolve environment-dependent facts at authoring time
+
+Probe these while authoring and bake the resolved answers into the plan + handoff:
+
+- **Prompt-card paths.** The three role cards (`adversarial-critic-prompt.md`, `spec-reviewer-prompt.md`, `code-quality-reviewer-prompt.md`) ship inside this skill's directory. Resolve their **absolute paths now** and embed them — never bare filenames. Add the rule explicitly: *if the team-lead cannot read a card at its path, it STOPS and asks the human — it must NOT synthesize one inline.* (If the build runs on a different machine, copy the cards into the plan's repo next to the plan and reference those paths instead.)
+- **Plan-promotion command.** Run `git check-ignore docs/` while authoring. If `docs/` is git-ignored, the done-signal is plain `mv` — `git mv` errors on ignored paths. Bake the **correct** command in; don't hardcode `git mv` blindly.
+- **Gate / Verify commands that depend on cwd.** Write commands that don't assume the working directory — e.g. `npm --prefix <app> test` rather than a bare `npm test`. Resolve `<app>` now.
+
 ## Planning principles — front-load what gets expensive late
 
 The costliest failures are important things nobody front-loaded; they surface last. At team scale, a bad decomposition is the most expensive of all.
@@ -55,17 +63,19 @@ The costliest failures are important things nobody front-loaded; they surface la
 
 Tag every task with a **tier** and an **owner role**.
 
-**Tier** (reasoning budget): `[haiku]`, `[sonnet]`, or `[orchestrator/opus]` — same meanings as `rk-plan-pro`:
+**Tier** (reasoning budget): `[haiku]`, `[sonnet]`, or `[orchestrator]` — same meanings as `rk-plan-pro`:
 
 | Tier | Gets | Examples |
 |---|---|---|
 | `[haiku]` | Mechanical, fully-specified, zero design decisions | dep adds, config edits, prop-driven components, copy edits, file moves, applying a precise diff |
 | `[sonnet]` | Judgment, multi-file coordination, non-trivial logic | core algorithms, integration, route handlers, hooks, anything requiring choices |
-| `[orchestrator/opus]` | Validation + verbatim writes only | running gates, writing exact-byte files, final verification |
+| `[orchestrator]` | Validation + verbatim writes only | running gates, writing exact-byte files, final verification |
 
 **Owner role** (which roster member): `**Owner role:** implementer | adversarial-critic | spec-reviewer | quality-reviewer | integration-tester`. The team-lead assigns the task to a teammate of that role via `TaskUpdate owner`, or the teammate self-claims it.
 
 **Haiku tasks MUST be more explicit than sonnet tasks** (less reasoning headroom). Every haiku task includes: exact file paths, exact content or a precise diff (not prose), exact commands + expected output, numbered steps assuming zero inference, and a STOP condition — "if anything differs, stop and report, do not improvise."
+
+**Plan-locked values:** if a task hard-codes values the plan mandates (fixed class names, hex literals, intentional ordering), list them in an optional `**Plan-locked content:**` field so the lead can hand them to the quality reviewer's Plan-locked content slot — otherwise the reviewer will flag the plan's own contract as defects.
 
 **Don't tier verbatim-content files.** If the plan contains a file's exact bytes (scaffolding, config, fixtures), the **team-lead writes it directly** — dispatching pure transcription wastes a teammate turn.
 
@@ -75,7 +85,7 @@ The team-lead runs `TeamCreate` (Team ↔ TaskList are 1:1), then spawns teammat
 
 | Role (name) | Tier | Responsibility |
 |---|---|---|
-| `team-lead` | Opus | Owns gates and lifecycle. **Writes no feature code** (only verbatim-content files). Populates the board, runs gate commands, runs the per-task review loop, flips checkboxes, commits, `git mv` on done, shuts the team down. |
+| `team-lead` | Opus | Owns gates and lifecycle. **Writes no feature code** (only verbatim-content files). Populates the board, runs gate commands, runs the per-task review loop, flips checkboxes, commits, moves the plan to `complete/` on done, shuts the team down. |
 | `impl-a`, `impl-b`, … | `[sonnet]`/`[haiku]` | Claim unblocked tasks off the board and build them, each in its own worktree. Scale the count to the number of parallel workstreams. |
 | `adversarial-critic` | Opus/`[sonnet]` | Standing critic. Pre-critiques the plan, then critiques safety-critical task outputs (generate→critique→regenerate). Uses `adversarial-critic-prompt.md`. |
 | `spec-reviewer` | `[sonnet]` | Standing spec-compliance review per task. Uses `spec-reviewer-prompt.md`. |
@@ -84,6 +94,7 @@ The team-lead runs `TeamCreate` (Team ↔ TaskList are 1:1), then spawns teammat
 
 Real team semantics the handoff must state (these are how the tools actually behave):
 
+- **Verify the substrate before spawning** — team tooling changes; confirm `TeamCreate`/`TaskList`/`SendMessage` exist in the executing harness before Phase 0. If `TeamCreate` is unavailable, STOP and tell the human this build should run as `rk-plan-pro` or `rk-plan-pro-cotal`.
 - **Refer to teammates by NAME** for `SendMessage` `to` and for task ownership — never by `agentId` (except to resume a *completed* background agent).
 - **Teammates go idle between turns** — idle is normal, not done and not an error. Messages to idle teammates wake them. Don't comment on idleness until it actually blocks work.
 - **Messages auto-deliver** — the lead does not poll an inbox; teammate messages arrive as new turns. Plain text output is invisible to teammates; you MUST `SendMessage` to communicate.
@@ -132,12 +143,14 @@ For each task a teammate claims, the team-lead runs:
 1. **Build** — the owning teammate (its tier) builds the task in its worktree, given only that task's section (+ any `BlockedBy` outputs as context). Pass `**Schema:**` when present.
 2. **Verify** — the lead runs the task's `**Verify:**` command (or has the integration-tester do it; `Monitor` if long). On failure, bounce the implementer with the output.
 3. **Spec review** — `spec-reviewer` checks compliance against the code. On ❌ → bounce implementer, back to step 2.
-4. **Quality review** — `quality-reviewer`, only after spec ✅. On ❌ → bounce implementer, back to step 2.
+4. **Quality review** — `quality-reviewer`, only after spec ✅. When the task carries plan-mandated values (fixed names, literals, ordering), pass them in the reviewer's **Plan-locked content** slot so it won't flag the plan's own contract as defects. On ❌ → bounce implementer, back to step 2.
 5. **Adversarial** (safety-critical tasks only) — `adversarial-critic` loop; block on findings ≥ threshold; bounce up to max iterations; surface unresolved findings to the human.
-6. **Commit + mark** — flip `- [ ]`→`- [x]`, commit with the task's exact `**Commit:**` message. Batch checkbox bookkeeping per phase.
+6. **Commit + mark** — flip `- [ ]`→`- [x]`, commit with the task's exact `**Commit:**` message. Keep checkboxes current — they are the resume state.
 7. **On surprise** — doc-backed correction → fix, note in plan, continue. **Anything that adds a dependency, costs money, or changes scope → STOP and ask the human.**
 
-At each **phase boundary**, the lead runs the `**Gate:**` command itself and confirms the exact output before unblocking the next phase. When all gates pass: `git mv` the plan `incomplete/`→`complete/`, then `SendMessage` each teammate `{type:"shutdown_request"}`.
+**Bounce cap:** steps 2–5 allow at most **3 bounces per task**; on the third failed re-review, STOP and surface the findings plus the implementer's position to the human. No unbounded loops.
+
+At each **phase boundary**, the lead runs the `**Gate:**` command itself and confirms the exact output before unblocking the next phase. When all gates pass: move the plan `incomplete/`→`complete/` (using the `git mv`-vs-`mv` command resolved at authoring time), then `SendMessage` each teammate `{type:"shutdown_request"}`.
 
 ## Quick Reference
 
@@ -147,14 +160,16 @@ At each **phase boundary**, the lead runs the `**Gate:**` command itself and con
 | Topology | `TeamCreate` + persistent named teammates on a shared task board; parallel self-claiming |
 | Plan location | `docs/plans/incomplete/YYYY-MM-DD-<slug>.md` → `complete/` when done |
 | Discovery | Explore + AskUserQuestion + workstream decomposition **before** writing the plan |
-| Task tags | tier `[haiku]`/`[sonnet]`/`[orchestrator/opus]` **and** `**Owner role:**` |
+| Task tags | tier `[haiku]`/`[sonnet]`/`[orchestrator]` **and** `**Owner role:**` |
 | DAG | `**BlockedBy:**` edges encode dependencies; phases are gate barriers; board may grow mid-build |
 | Isolation | parallel implementers get `isolation:"worktree"`; integrate at gate barriers |
 | Review | standing `spec-reviewer` then `quality-reviewer` per task; bounce implementer on ❌ |
 | Adversarial | standing critic; pre-critique the plan; mandatory on auth/payments/data/migrations/PII |
 | Gates | exact command + expected result; `Monitor` long-running ones (emit success *and* failure signals) |
 | Schema | flat JSON, max 2 levels; gates may reference fields |
-| Lifecycle | `git mv` on all-gates-pass, then `shutdown_request` to every teammate |
+| Lifecycle | plan moved to `complete/` on all-gates-pass (resolved `git mv`/`mv`), then `shutdown_request` to every teammate |
+| Env facts | Probe at authoring time: prompt-card absolute paths, `git check-ignore docs/` (→ `mv` vs `git mv`), cwd-safe gate commands |
+| Bounce cap | Max 3 bounces per task (Verify/spec/quality/adversarial), then STOP and surface to the human |
 | Handoff | embedded as final plan section **and** echoed to chat |
 | This session | Author + deliver, then **STOP** — do not create a team or build |
 
@@ -167,9 +182,9 @@ At each **phase boundary**, the lead runs the `**Gate:**` command itself and con
 - **Monitor that only greps success.** A crashloop then looks identical to "still running." Emit on success *and* failure signatures.
 - **No plan pre-critique.** A bad DAG caught at Phase 3 is enormously more expensive than at Phase 0. Run the critic on the plan first.
 - **Critic gets the full plan doc.** That biases it toward confirming the plan. Give it only the task spec, output, and changed files.
-- **Team never shut down.** Idle teammates linger. After `git mv`, send `shutdown_request` to each.
+- **Team never shut down.** Idle teammates linger. After moving the plan to `complete/`, send `shutdown_request` to each.
 - **Referring to teammates by `agentId`.** Use names for messaging and ownership.
-- **Prose gates / planning on assumptions / terse haiku tasks / plan saved flat.** Same rules as the rest of the family — exact-command gates, explore-and-ask first, haiku needs *more* detail, save under `docs/plans/incomplete/`.
+- **Prose gates / planning on assumptions / terse haiku tasks / plan saved flat / hardcoded `git mv` / bare prompt-card filenames.** Same rules as the rest of the family — exact-command gates, explore-and-ask first, haiku needs *more* detail, save under `docs/plans/incomplete/`, resolve `mv` vs `git mv` and the cards' absolute paths at authoring time.
 - **Starting the build.** The author session STOPS after delivering.
 
 ## Red Flags — STOP
