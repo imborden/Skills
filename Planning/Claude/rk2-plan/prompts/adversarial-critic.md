@@ -1,4 +1,4 @@
-# Adversarial Critic
+# Adversarial Critic (Sonnet)
 
 **Delivery by tier:**
 - **pro** — dispatched **fresh per `[adversarial]` task** by the Opus orchestrator; hand this card to the critic at dispatch. No standing critic, no plan pre-critique at pro.
@@ -17,6 +17,8 @@ NOT the full plan doc) → critic returns findings with confidence → gate chec
 ```
 
 **Defaults:** `Threshold: 75`, `Max iterations: 3`. The critic never sees the full plan doc (prevents plan-confirmation bias).
+
+**Delivery is by paste, not reference.** This is the one card whose task section is pasted into the prompt — the critic must never receive the plan path.
 
 ## Confidence model
 
@@ -40,9 +42,11 @@ NOT the full plan doc) → critic returns findings with confidence → gate chec
     }
   ],
   "highestConfidence": 75,
-  "passedThreshold": false
+  "blocking": false
 }
 ```
+
+`blocking` = any finding's confidence ≥ Threshold. **The executor recomputes it from `findings[].confidence` and ignores the critic's own value.**
 
 ## When to use / skip
 
@@ -68,6 +72,6 @@ abuse-cases (hostile or malformed input, auth bypass, data corruption, replay). 
 give a concrete trace a reader could reproduce from the diff, and a confidence per the
 model above.
 
-Return ONLY the JSON object (findings, highestConfidence, passedThreshold). No prose
+Return ONLY the JSON object (findings, highestConfidence, blocking). No prose
 outside it. Do not invent speculative findings to pad the list — suppress anything below 25.
 ```

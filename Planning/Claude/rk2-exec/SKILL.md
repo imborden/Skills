@@ -24,7 +24,7 @@ reviewer/critic prompt inline, never fall back to a home-directory path.**
 ## Context discipline (all tiers)
 
 - **You read the plan and run commands — implementers read code.** No grounding reads of source files, no re-reading diffs to second-guess reviewers. Each task's `Grounding:` files are for its implementer.
-- **Dispatch by reference, never by paste:** "Read ONLY the section `### Task N — <name>` in `<absolute plan path>` — that section is your entire spec. Do not read other tasks' sections."
+- **Dispatch by reference, never by paste:** "Read ONLY the section `### Task N — <name>` in `<absolute plan path>` — that section is your entire spec. Do not read other tasks' sections." **Exception:** the adversarial critic gets its task section pasted and never the plan path.
 - **Cap reports in every dispatch:** implementers return schema JSON + a ≤10-line note (data for you, not prose); reviewers return the verdict line + ≤3 sentences on ✅, failure bullets only on ❌.
 
 ## Per-task loop (all tiers)
@@ -42,7 +42,7 @@ reviewer/critic prompt inline, never fall back to a home-directory path.**
      (spec ❌ blocks quality). Implied for every task in an `[adversarial]` phase.
    - `[haiku] (verbatim)` — byte-identity spec review is the ONLY review, unchanged;
      a `Review:` field on a verbatim task is ignored.
-4. **Adversarial** (pro `[adversarial]` phases / max `Adversarial: yes` tasks only) — critic gets the task spec + output + changed files, **never the full plan**. Block on findings ≥ `Threshold:` (default 75), loop up to `Max iterations:` (default 3), surface unresolved findings to the human.
+4. **Adversarial** (pro `[adversarial]` phases / max `Adversarial: yes` tasks only) — critic gets the task spec + output + changed files, **never the full plan**. Block when max(`findings[].confidence`) ≥ `Threshold:` — compute it yourself, ignore the critic's `blocking` field (default 75), loop up to `Max iterations:` (default 3), surface unresolved findings to the human.
 5. **Flip `- [ ]`→`- [x]`** in the plan and **commit** with the task's exact `Commit:` message. Checkboxes are the resume state — keep them current. Every bounce, STOP, and critic iteration also appends one line to the plan's `## Build log` (format in the template) — on STOP, commit it as `wip(plan): stop at Task N` before surfacing to the human.
 
 **Bounce rule (all steps):** on a ❌ or a Verify failure, bounce the **same implementer**
