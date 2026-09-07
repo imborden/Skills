@@ -1,6 +1,6 @@
 # Max tier — Opus team-lead + persistent team
 
-Mission-critical or large-scale builds with real concurrency. The leap from pro is **topology, not just rigor**: pro is a star with ephemeral spokes; max is a persistent team — the lead runs `TeamCreate`, spawns a named roster, populates a shared `TaskList` whose `blockedBy` edges encode the execution DAG, and teammates **self-claim unblocked tasks in parallel** (worktree-isolated), coordinating peer-to-peer via `SendMessage`. The critic and reviewers are *standing team members*. **Confirm with the user before planning at this tier** — a team is the one expensive commitment in the family.
+Mission-critical or large-scale builds with real concurrency. The leap from pro is **topology, not just rigor**: pro is a star with ephemeral spokes; max is a persistent team — the lead runs `TeamCreate`, spawns a named roster, populates a shared `TaskList` whose `blockedBy` edges encode the execution DAG, and teammates **self-claim unblocked tasks in parallel** (worktree-isolated), coordinating peer-to-peer via `SendMessage`. The critic and reviewers are *standing team members*. **Confirm with the user before planning at this tier** — a team is the one expensive commitment in the family. **Conditional tier:** `TeamCreate`/`TaskList`/`TaskCreate`/`TaskUpdate` are plugin-provided, not base Claude Code. At authoring time run `ToolSearch "select:TeamCreate,TaskList"`; if either is missing on the machine that will execute, route to pro — do not author a max plan the executor can't run.
 
 ## Step down to pro when
 

@@ -58,10 +58,13 @@ exact-byte transcription (byte-identity spec review only) · `[sonnet]` judgment
 <!-- MAX ONLY — delete for mid/pro -->
 ## Phase 0 — Team setup [orchestrator]
 
-**Gate:** every roster member responds to a `SendMessage` ping AND `TaskList` shows every Phase 1+ task with its `BlockedBy` edges set AND the plan pre-critique has no unresolved blocking finding.
+**Gate:** `ToolSearch "select:TeamCreate,TaskList,TaskCreate,TaskUpdate,SendMessage"` → all five schemas returned (none missing)
+AND for each roster name N: `SendMessage {to: N, message: "ping"}` → a reply containing `pong` within the team's first turn
+AND `TaskList` → one row per `### Task` heading below, each non-root row showing its `BlockedBy` ids
+AND the pre-critique JSON has `blocking: false`
 
-- [ ] Verify the substrate: `TeamCreate`/`TaskList`/`SendMessage` available. If not, STOP — run this plan at pro tier instead.
-- [ ] `TeamCreate` with `team_name: <slug>`; spawn the roster (implementers with `isolation:"worktree"`); reviewers/critic get their prompt card in the spawn prompt, once.
+- [ ] Verify the substrate with the ToolSearch call above. If not, STOP — run this plan at pro tier instead.
+- [ ] `TeamCreate` with `team_name: <slug>`; spawn the roster (implementers with `isolation:"worktree"`); reviewers/critic get their prompt card in the spawn prompt, once; each spawn prompt ends with "reply `pong` to any message that is exactly `ping`".
 - [ ] `TaskCreate` every task below; set `BlockedBy` edges via `TaskUpdate`.
 - [ ] **Plan pre-critique:** `adversarial-critic` reads this plan + DAG, reports failure modes; resolve blocking findings before unblocking Phase 1.
 <!-- END MAX ONLY -->
