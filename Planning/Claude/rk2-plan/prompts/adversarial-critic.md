@@ -13,7 +13,7 @@ Implementer produces output → critic gets (task spec + output + changed file p
 NOT the full plan doc) → critic returns findings with confidence → gate check:
   - Any finding ≥ Threshold        → bounce the implementer with findings → regenerate
   - All findings < Threshold       → pass
-  - Max iterations hit, unresolved → STOP, surface findings to the human in the plan doc
+  - Max iterations hit, unresolved → STOP, log to the plan's Build log, surface to the human
 ```
 
 **Defaults:** `Threshold: 75`, `Max iterations: 3`. The critic never sees the full plan doc (prevents plan-confirmation bias).
@@ -24,7 +24,7 @@ NOT the full plan doc) → critic returns findings with confidence → gate chec
 |-------|---------|--------|
 | 100 | Mechanically constructible — every step verifiable from the diff | Block — bounce |
 | 75 | Concrete, reproducible scenario — one step may depend on unconfirmed conditions | Block — bounce |
-| 50 | Plausible but one step can't be confirmed from code alone | Note in plan doc, don't block |
+| 50 | Plausible but one step can't be confirmed from code alone | Append to Build log, don't block |
 | <25 | Speculative — requires conditions with no evidence | Suppress |
 
 ## What the critic produces

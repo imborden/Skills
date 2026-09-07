@@ -43,7 +43,7 @@ If a needed file can't be read at its path (or the plan's Run config names repo-
    - `[haiku] (verbatim)` — byte-identity spec review is the ONLY review, unchanged;
      a `Review:` field on a verbatim task is ignored.
 4. **Adversarial** (pro `[adversarial]` phases / max `Adversarial: yes` tasks only) — critic gets the task spec + output + changed files, **never the full plan**. Block on findings ≥ `Threshold:` (default 75), loop up to `Max iterations:` (default 3), surface unresolved findings to the human.
-5. **Flip `- [ ]`→`- [x]`** in the plan and **commit** with the task's exact `Commit:` message. Checkboxes are the resume state — keep them current.
+5. **Flip `- [ ]`→`- [x]`** in the plan and **commit** with the task's exact `Commit:` message. Checkboxes are the resume state — keep them current. Every bounce, STOP, and critic iteration also appends one line to the plan's `## Build log` (format in the template) — on STOP, commit it as `wip(plan): stop at Task N` before surfacing to the human.
 
 **Bounce rule (all steps):** on a ❌ or a Verify failure, bounce the **same implementer**
 with the findings, re-run the task's `Verify:`, then **resume at the step that bounced,
@@ -52,7 +52,7 @@ touched files outside what they reviewed. Never re-run the full review chain aft
 bounce. Inside an `[adversarial]` loop, an iteration re-runs the **critic** only; a
 reviewer re-runs only if the fix touched files outside its ✅ scope.
 
-**Bounce cap: max 3 per task** across steps 2–4. On the third failure, STOP and surface the findings plus the implementer's last output to the human. You never fix the code yourself and never wave blocking issues through.
+**Bounce cap: max 3 per task** across steps 2–4. The count lives in the Build log, not your memory. On the third failure, STOP: log it, commit, surface the findings plus the implementer's last output to the human. You never fix the code yourself and never wave blocking issues through.
 
 ## Phases and gates (all tiers)
 
@@ -72,7 +72,7 @@ A phase header may carry `**After:** Phase K`, naming its true dependency. A pha
 
 ## Resuming an interrupted build (all tiers)
 
-State = plan checkboxes + git log (+ `TaskList` + worktrees at max). Reconcile first (last commit vs last flipped box vs board), treat uncommitted in-flight work as untrusted (re-dispatch that task), re-run the most recent phase's `Gate:` before continuing. At max, respawn missing teammates.
+State = plan checkboxes + Build log + git log (+ `TaskList` + worktrees at max). Reconcile first (last commit vs last flipped box vs board), treat uncommitted in-flight work as untrusted (re-dispatch that task), re-run the most recent phase's `Gate:` before continuing. At max, respawn missing teammates. A task whose Build log already shows 3 bounces is not re-dispatched — it is surfaced to the human again.
 
 ## Done signal (all tiers)
 

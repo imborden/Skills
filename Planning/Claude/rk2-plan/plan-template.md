@@ -150,3 +150,15 @@ must stay within Sonnet's reach — no open-ended design calls.)
 
 How to confirm the whole thing works: exact commands and expected output. Keep it
 runnable — the executor runs this, it doesn't eyeball.
+
+
+---
+
+## Build log
+
+<!-- Executor-owned. One line per event, append-only, committed with the task (or as a
+     WIP commit on STOP). Format:
+     - YYYY-MM-DD HH:MM | Task N | bounce k/3 | <step that bounced> | <one-line findings>
+     - YYYY-MM-DD HH:MM | Task N | STOP | <reason> | <what the human must decide>
+     - YYYY-MM-DD HH:MM | Task N | critic iter k/3 | highest=NN | <finding ≥50 in one line>
+     Resume reads this before dispatching anything. -->
