@@ -60,7 +60,7 @@ Execute in document order per the header annotation: `[parallel]` → dispatch a
 
 A phase header may carry `**After:** Phase K`, naming its true dependency. A phase whose named dependency's gate has passed may run concurrently with intervening phases; the orchestrator still runs every gate itself. No `After:` line = strict document order.
 
-**Gates are commands, not opinions.** At each phase boundary run the `Gate:` command yourself and confirm the exact expected output; gates may reference schema fields (`testsPassing === true`) — a gate referencing a field no task declares is a plan error to flag before dispatch. On failure, bounce the responsible task. Report progress to the human at each gate.
+**Gates are commands, not opinions.** At each phase boundary run the `Gate:` command yourself and confirm the exact expected output; gates may reference noun schema fields (`filesCreated.length === 2`) that you re-check with a command — a gate referencing a field no task declares is a plan error to flag before dispatch. On failure, bounce the responsible task. Report progress to the human at each gate.
 
 ## Escalation (all tiers)
 

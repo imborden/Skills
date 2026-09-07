@@ -74,7 +74,7 @@ exact-byte transcription (byte-identity spec review only) · `[sonnet]` judgment
      Output must be DETERMINISTIC: normalize away timings, paths and run-varying
      counts inside the command (`| grep -cF 'Build complete!'` → `1`), never assert
      a bare string against a line that carries a variable suffix.
-     May reference schema fields: AND testsPassing === true AND filesCreated.length >= 2
+     May reference noun schema fields: AND filesCreated.length >= 2 (never implementer-set booleans)
      Make this gate exercise the riskiest unverified assumption (one real call/query).
      MAX, long-running gates: run under Monitor emitting success AND failure signals:
      Monitor: `npm test 2>&1 | grep -E --line-buffered "PASS|FAIL|Error|Killed"` -->
@@ -95,7 +95,7 @@ automated gate can touch the real system> -->
 and safety-critical tasks add: **Adversarial:** yes — threshold 75, max iterations 3 -->
 **Files:** Create/Modify `<exact paths>`
 **Grounding:** `<files the implementer reads before starting — the executor never reads these>`
-**Schema:** `{ "filesCreated": ["string"], "testsPassing": "boolean" }`
+**Schema:** `{ "filesCreated": ["string"], "exportedSymbols": ["string"] }`
 <!-- Schema optional but valued; keep flat (max 2 levels). -->
 **Review:** <gate-only | standard | full — omit for standard; gate-only only when Verify is a real automated check>
 

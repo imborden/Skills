@@ -80,7 +80,7 @@ tasks, not on code tasks with hard gates.
 
 ## Gates — exact commands only
 
-A phase `**Gate:**` is an **exact command + exact expected result** (string match, count, exit code, or schema-field assertion). Prose gates are banned ("verify it works"). Gates may reference task schema fields (`testsPassing === true`); a gate referencing a field no task declares is a plan error.
+A phase `**Gate:**` is an **exact command + exact expected result** (string match, count, exit code, or schema-field assertion). Prose gates are banned ("verify it works"). Gates may reference task schema fields, but only **nouns, not verdicts**: fields the orchestrator can re-derive with `ls`, `grep -c`, or `wc -l` (`filesCreated`, `routeName`, a count). A pass/fail boolean set by the implementer is never a gate input — the gate re-runs the command. A gate referencing a field no task in that phase declares is a plan error.
 
 **The command must emit a deterministic value.** Exact-match assertions are checked
 literally by the gate agent, so a command whose output carries a timing, duration,
@@ -97,7 +97,7 @@ normalize it.
 
 **Gate:** `npm test -- upload` → `Tests  7 passed (7)` AND exit 0
 **Gate:** `npx tsc --noEmit` → no output (exit 0)
-**Gate:** `npm test` → 0 failures AND testsPassing === true
+**Gate:** `ls src/export/*.ts | wc -l | tr -d ' '` → `2` AND filesCreated.length === 2
 ```
 
 The same rule governs every task `**Verify:**` line, which has the identical shape: `command` → expected. A Verify with no `→` expected half is a plan error (the lint rejects it).
@@ -114,7 +114,7 @@ Every phase header carries ONE strategy annotation: `## Phase N — <title> [par
 
 ## Schema validation
 
-Each task MAY declare a flat JSON Schema for its agent's output: `**Schema:** { "filesCreated": ["string"], "testsPassing": "boolean" }`. Structured returns let the executor check fields mechanically instead of judging prose. Flat (max 2 levels), descriptive names, `boolean` for pass/fail, a count field when useful. Skip only when output is genuinely hard to schematize.
+Each task MAY declare a flat JSON Schema for its agent's output: `**Schema:** { "filesCreated": ["string"], "exportedSymbols": ["string"] }`. Structured returns let the executor check fields mechanically instead of judging prose. Flat (max 2 levels), descriptive names, booleans allowed in the return for the executor's own bookkeeping but never referenced by a Gate, a count field when useful. Skip only when output is genuinely hard to schematize.
 
 ## Review model (all tiers — details in `rk2-exec`)
 
