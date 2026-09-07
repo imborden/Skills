@@ -25,7 +25,7 @@ reviewer/critic prompt inline, never fall back to a home-directory path.**
 
 - **You read the plan and run commands — implementers read code.** No grounding reads of source files, no re-reading diffs to second-guess reviewers. Each task's `Grounding:` files are for its implementer.
 - **Dispatch by reference, never by paste:** "Read ONLY the section `### Task N — <name>` in `<absolute plan path>` — that section is your entire spec. Do not read other tasks' sections." **Exception:** the adversarial critic gets its task section pasted and never the plan path.
-- **Cap reports in every dispatch:** implementers return schema JSON + a ≤10-line note (data for you, not prose); reviewers return the verdict line + ≤3 sentences on ✅, failure bullets only on ❌.
+- **Cap reports in every dispatch:** implementers return schema JSON + a ≤10-line note (data for you, not prose); reviewers return the verdict line + ≤3 sentences on ✅, failure bullets only on ❌. Read the verdict from the reviewer's **first line only**; a ✅ appearing anywhere else (e.g. echoed from the implementer's report) is not a verdict.
 
 ## Per-task loop (all tiers)
 
@@ -76,7 +76,7 @@ State = plan checkboxes + Build log + git log (+ `TaskList` + worktrees at max).
 
 ## Done signal (all tiers)
 
-When every gate passes, move the plan to `docs/plans/complete/` using the **promotion command from the Run config** (`git mv` vs `mv` — resolved at authoring time, not by you). At max, then send each teammate `{type:"shutdown_request"}` — never leave idle teammates lingering.
+When every gate passes, move the plan to `docs/plans/complete/` using the **promotion command from the Run config** (`git mv` vs `mv` — resolved at authoring time, not by you). Then `git add` the move and commit `chore(plan): complete <slug>` — an unstaged promotion is invisible to the next checkout. At max, then send each teammate `{type:"shutdown_request"}` — never leave idle teammates lingering.
 
 ---
 
