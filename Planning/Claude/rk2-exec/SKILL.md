@@ -1,0 +1,112 @@
+---
+name: rk2-exec
+description: Execute an rk2-plan implementation plan at any tier (mid / pro / max) — the consolidated successor to rk-exec + rk-exec-pro + rk-exec-max. Use when asked to run/execute a plan doc produced by rk2-plan — e.g. "/rk2-exec docs/plans/incomplete/2026-07-17-foo.md". Reads the plan's Run config Tier, then runs the matching topology: mid/pro = orchestrator dispatching one fresh agent per task; max = team-lead standing up a persistent team on a shared task board. Exact Verify/Gate commands, delegated review via the bundled prompts, 3-bounce cap, commit per task, promotes the plan when every gate passes.
+---
+
+# rk2-exec — execute an rk2 plan
+
+The argument is the plan path. **Read the plan in full first.** Its Run config `Tier:` line selects your topology — the shared rules below apply at every tier; the tier sections add the differences. You dispatch and validate; you do NOT write feature code (only `[orchestrator]`-tagged files whose exact bytes are in the plan) and you do NOT judge diffs in your own head — reviewers do.
+
+## Before Phase 1 (all tiers)
+
+- Confirm you are on a feature branch — create one if on the default branch.
+- Read the Run config: `Tier:`, promotion command, Workflow authorization (mid/pro), hard rules.
+
+## Prompt files (absolute paths — all tiers)
+
+- Combined (default review): `/Users/jeffborden/.claude/skills/rk2-plan/prompts/combined-reviewer.md`
+- Spec-compliance: `/Users/jeffborden/.claude/skills/rk2-plan/prompts/spec-reviewer.md`
+- Code-quality: `/Users/jeffborden/.claude/skills/rk2-plan/prompts/quality-reviewer.md`
+- Adversarial critic (pro/max): `/Users/jeffborden/.claude/skills/rk2-plan/prompts/adversarial-critic.md`
+
+If a needed file can't be read at its path (or the plan's Run config names repo-local copies, use those), **STOP and ask the human — never synthesize a reviewer/critic prompt inline.**
+
+## Context discipline (all tiers)
+
+- **You read the plan and run commands — implementers read code.** No grounding reads of source files, no re-reading diffs to second-guess reviewers. Each task's `Grounding:` files are for its implementer.
+- **Dispatch by reference, never by paste:** "Read ONLY the section `### Task N — <name>` in `<absolute plan path>` — that section is your entire spec. Do not read other tasks' sections."
+- **Cap reports in every dispatch:** implementers return schema JSON + a ≤10-line note (data for you, not prose); reviewers return the verdict line + ≤3 sentences on ✅, failure bullets only on ❌.
+
+## Per-task loop (all tiers)
+
+1. **Implement** — fresh agent dispatched with an **explicit `model` derived from the task's tag**: `[haiku]` mechanical and `[haiku] (verbatim)` exact-byte transcription → `haiku`; `[sonnet]` judgment → `sonnet`. **Never omit `model`** — it defaults to the session model, which at pro/max is Opus, so an omitted `model` silently runs a `[sonnet]` task on Opus at several times the cost. Applies identically to `Agent` calls and to `agent()` calls inside a `Workflow` script. Dispatch by section reference; pass `Receives:` values in pipeline phases and `Schema:` when present; validate returned fields mechanically.
+2. **Run the task's `Verify:` command.**
+3. **Review** — routed by the task's `Review:` field (default `standard` when absent). **Reviewers and critics take `model` from their prompt card, passed explicitly at every dispatch — all four cards specify Sonnet.** Never let it inherit. If you deliberately run a critic on a stronger model, re-calibrate the plan's `Threshold:` in the same edit — the critic card's confidence model is written for Sonnet.
+   - `gate-only` — no delegated review; the `Verify:` command and the phase gate ARE the
+     review. Only legal when the task's Verify is a real automated check (tests,
+     typecheck, byte/grep assertion) — a `gate-only` task whose Verify is prose is a plan
+     error to flag before dispatch.
+   - `standard` (default) — one combined reviewer (Sonnet, combined-reviewer prompt,
+     slots by reference). Fills the Plan-locked content slot when the task declares one.
+   - `full` — split reviews: spec-compliance first, then code-quality, exactly as before
+     (spec ❌ blocks quality). Implied for every task in an `[adversarial]` phase.
+   - `[haiku] (verbatim)` — byte-identity spec review is the ONLY review, unchanged;
+     a `Review:` field on a verbatim task is ignored.
+4. **Adversarial** (pro `[adversarial]` phases / max `Adversarial: yes` tasks only) — critic gets the task spec + output + changed files, **never the full plan**. Block on findings ≥ `Threshold:` (default 75), loop up to `Max iterations:` (default 3), surface unresolved findings to the human.
+5. **Flip `- [ ]`→`- [x]`** in the plan and **commit** with the task's exact `Commit:` message. Checkboxes are the resume state — keep them current.
+
+**Bounce rule (all steps):** on a ❌ or a Verify failure, bounce the **same implementer**
+with the findings, re-run the task's `Verify:`, then **resume at the step that bounced,
+scoped to the findings and the fix's diff** — earlier ✅ verdicts stand unless the fix
+touched files outside what they reviewed. Never re-run the full review chain after a
+bounce. Inside an `[adversarial]` loop, an iteration re-runs the **critic** only; a
+reviewer re-runs only if the fix touched files outside its ✅ scope.
+
+**Bounce cap: max 3 per task** across steps 2–4. On the third failure, STOP and surface the findings plus the implementer's last output to the human. You never fix the code yourself and never wave blocking issues through.
+
+## Phases and gates (all tiers)
+
+Execute in document order per the header annotation: `[parallel]` → dispatch all at once, wait, gate (only the failing task bounces); `[pipeline]` → in order, feeding each validated output forward via `Receives:` (a failure stops the chain); `[sequential]` (default) → one at a time, full loop each.
+
+A phase header may carry `**After:** Phase K`, naming its true dependency. A phase whose named dependency's gate has passed may run concurrently with intervening phases; the orchestrator still runs every gate itself. No `After:` line = strict document order.
+
+**Gates are commands, not opinions.** At each phase boundary run the `Gate:` command yourself and confirm the exact expected output; gates may reference schema fields (`testsPassing === true`) — a gate referencing a field no task declares is a plan error to flag before dispatch. On failure, bounce the responsible task. Report progress to the human at each gate.
+
+## Escalation (all tiers)
+
+- Doc-backed correction to a planned decision → fix, note in the plan, continue.
+- New dependency, costs money, scope change, judgment call you're unsure of → **STOP and ask the human.**
+- A task turns out to exceed the plan's tier (e.g. a mid task needs Opus reasoning or adversarial review) → STOP; tell the human which tier this belongs at.
+
+**Proof bar:** nothing is "done" without real command output; gate any unverified assumption with a live probe rather than trusting it.
+
+## Resuming an interrupted build (all tiers)
+
+State = plan checkboxes + git log (+ `TaskList` + worktrees at max). Reconcile first (last commit vs last flipped box vs board), treat uncommitted in-flight work as untrusted (re-dispatch that task), re-run the most recent phase's `Gate:` before continuing. At max, respawn missing teammates.
+
+## Done signal (all tiers)
+
+When every gate passes, move the plan to `docs/plans/complete/` using the **promotion command from the Run config** (`git mv` vs `mv` — resolved at authoring time, not by you). At max, then send each teammate `{type:"shutdown_request"}` — never leave idle teammates lingering.
+
+---
+
+## Tier: mid — Sonnet orchestrator
+
+- You are mechanical: dispatch, run commands, act on verdicts. Escalate sooner than a stronger orchestrator would — when in doubt, stop and ask.
+- **No adversarial phases** — a plan with one is mis-tiered; stop and say so.
+- **Workflow authorization:** if the Run config says **authorized**, prefer running the per-task loop as a `Workflow` pipeline script (implement → Verify → review per the task's `Review:` weight, 3-bounce cap) so per-task traffic stays out of your context. If **not authorized**, plain Agent loop. Never decide this yourself.
+- **In a `Workflow` script, tier is data, not prose:** every task record carries `model: 'sonnet'|'haiku'` and every `agent()` call passes it (reviewers/critics get the card's model). `log()` the tier map once before the first dispatch (a single line like `tiers: T1=sonnet T2=sonnet T3=haiku`), so a wrong tier is visible in `/workflows` during the run instead of in a postmortem.
+
+## Tier: pro — Opus orchestrator
+
+- Same star topology as mid, plus `[adversarial]` phases per the loop's step 4 — dispatch a **fresh critic per task** with the critic card.
+- Workflow authorization works as at mid.
+
+## Tier: max — Opus team-lead
+
+**Phase 0 — stand up the team (before any Phase 1 task):**
+
+1. **Verify the substrate:** `TeamCreate`/`TaskList`/`SendMessage` exist in this harness. If not, STOP — tell the human to run this plan at pro tier.
+2. `TeamCreate` with `team_name: <plan slug>`. Spawn the plan's roster via the `Agent` tool with `team_name` + a stable `name`; implementers get `isolation:"worktree"`.
+3. **Prompt cards go in the spawn prompt, once** — spawn `spec-reviewer`, `quality-reviewer`, and `adversarial-critic` each with its card as standing instructions; do not re-send per review.
+4. `TaskCreate` every plan task; set `BlockedBy` edges via `TaskUpdate`. The board IS the execution DAG and part of the resume state — never mirror it in prose.
+5. **Plan pre-critique:** `adversarial-critic` reads the plan + DAG and reports failure modes; resolve every blocking finding before unblocking Phase 1.
+
+**Team operation:**
+
+- Teammates **self-claim unblocked tasks in ID order** (`TaskUpdate owner`); the per-task loop above runs with standing reviewers instead of fresh dispatches. **At max, review means the standing split pair** (spec then quality) — the combined reviewer is a mid/pro dispatch economy. A task's `Review: gate-only` still skips delegated review; the delta-scoped bounce rule applies here too.
+- **Route review traffic peer-to-peer:** implementers message `spec-reviewer` directly (task ID + changed paths); reviewers bounce implementers directly on ❌. **You receive verdicts and blockers only** — per-task traffic must not transit your context. State the report caps in every spawn prompt.
+- Communicate only via `SendMessage`, by **name** (never `agentId`); plain text output is invisible to teammates. Idle teammates are normal — not done, not an error.
+- **Phases are gate barriers:** no Phase N+1 task unblocks until you've run Phase N's gate yourself. **Long-running gates** run under `Monitor` with a filter emitting success AND failure signatures (`-E "PASS|FAIL|Error|Traceback|Killed"`) — silence must never read as success; keep the team working meanwhile.
+- **Worktree isolation:** parallel implementers never share a tree; integration happens at gate barriers (integration-tester/you). Two tasks touching the same files in one phase is a plan error — serialize with a `BlockedBy` edge.
+- **Dynamic board:** teammates may `TaskCreate` discovered work (owner role + `BlockedBy`, under the nearest gate). Scope-expanding discoveries are never self-added — STOP and ask the human.
