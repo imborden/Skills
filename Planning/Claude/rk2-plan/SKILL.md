@@ -28,7 +28,7 @@ A spec/design doc is an input, not a ritual: if one exists (path given, or produ
 ## Step 2 — workflow
 
 1. **Discovery first — never plan on assumptions.** Explore the codebase (read-only; Explore agents for breadth) AND ask the human clarifying questions (AskUserQuestion) to resolve scope, approach, and unknowns. Find existing utilities/patterns to reuse before proposing new code.
-2. **Write the plan doc** to `docs/plans/incomplete/YYYY-MM-DD-<kebab-slug>.md` (create dirs if missing). Use `plan-template.md` in this skill; delete the sections marked for other tiers.
+2. **Write the plan doc** to `docs/plans/incomplete/YYYY-MM-DD-<kebab-slug>.md` (create dirs if missing). Use `plan-template.md` in this skill; delete the sections marked for other tiers. `bin/fixtures/valid-mid.md` is a complete worked example — read it once before writing your first plan of a session; it shows `[pipeline]` + `Receives:`, a locked-content task, a noun schema gate, and a verbatim task with a STOP condition.
 3. **Fill the Run config block** — `Tier:`, `Rk2 dir:`, promotion command (`git mv` vs `mv`), Workflow authorization (ask the human now, **recommending "authorized"** — it keeps per-task dispatch/review traffic out of the orchestrator's context; on a pro/Opus orchestrator, "not authorized" is typically the single most expensive line in the Run config), hard rules. Do NOT embed an execution protocol or handoff prompt — that lives in `rk2-exec`.
 4. **Lint the plan:** `python3 docs/plans/rk2/rk2-lint.py <plan path>` → `OK`. Fix every reported line; do not print the kickoff until it passes.
 5. **End by printing the one-line kickoff**: `/rk2-exec docs/plans/incomplete/YYYY-MM-DD-<slug>.md` — nothing more.
