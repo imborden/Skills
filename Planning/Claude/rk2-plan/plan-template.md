@@ -113,7 +113,7 @@ and safety-critical tasks add: **Adversarial:** yes — threshold 75, max iterat
 expected output, and a STOP condition — "if anything differs, stop and report, do
 not improvise.">
 
-**Verify:** `<runnable command>`
+**Verify:** `<runnable command>` → <exact expected output: string match / count / exit code>
 **Commit:** `<type(scope): message>`
 
 ### Task 2 — <name> `[sonnet]`
@@ -123,7 +123,7 @@ not improvise.">
 ... (sonnet tasks may state intent + constraints rather than verbatim code, but scope
 must stay within Sonnet's reach — no open-ended design calls.)
 
-**Verify:** `<runnable command>`
+**Verify:** `<runnable command>` → <exact expected output: string match / count / exit code>
 **Commit:** `<type(scope): message>`
 
 ---

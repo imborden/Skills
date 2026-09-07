@@ -100,7 +100,7 @@ normalize it.
 **Gate:** `npm test` → 0 failures AND testsPassing === true
 ```
 
-The same rule governs every task `**Verify:**` command.
+The same rule governs every task `**Verify:**` line, which has the identical shape: `command` → expected. A Verify with no `→` expected half is a plan error (the lint rejects it).
 
 ## Phase execution strategies
 
