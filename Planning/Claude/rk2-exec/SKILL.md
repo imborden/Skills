@@ -1,6 +1,6 @@
 ---
 name: rk2-exec
-description: Execute an rk2-plan implementation plan at any tier (mid / pro / max) — the consolidated successor to rk-exec + rk-exec-pro + rk-exec-max. Use when asked to run/execute a plan doc produced by rk2-plan — e.g. "/rk2-exec docs/plans/incomplete/2026-07-17-foo.md". Reads the plan's Run config Tier, then runs the matching topology: mid/pro = orchestrator dispatching one fresh agent per task; max = team-lead standing up a persistent team on a shared task board. Exact Verify/Gate commands, delegated review via the bundled prompts, 3-bounce cap, commit per task, promotes the plan when every gate passes.
+description: Execute an rk2-plan plan doc — run it top to bottom, or resume, continue, and pick up an interrupted build where it stopped. Use when asked to execute or run a plan from docs/plans/incomplete/ — e.g. "/rk2-exec docs/plans/incomplete/2026-07-17-foo.md". Reads the plan's Run config Tier and runs the matching topology at mid, pro or max.
 ---
 
 # rk2-exec — execute an rk2 plan

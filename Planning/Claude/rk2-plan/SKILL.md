@@ -1,6 +1,6 @@
 ---
 name: rk2-plan
-description: Plan a multi-step build and route it to the right tier (mid / pro / max) in one skill — the consolidated successor to rk-plan-router + rk-plan + rk-plan-pro + rk-plan-max. Use when the user wants an implementation plan a fresh session will execute, a "plan + handoff", or an orchestrated/subagent build — e.g. "/rk2-plan add CSV export". Picks a tier from a 3-question tree, declares it with reasoning, reads tiers/<tier>.md for tier-specific rules, writes the plan doc, and prints the /rk2-exec kickoff line. Not for small do-it-now tasks, pure research, or same-session implementation.
+description: Write an implementation plan and handoff that a fresh session executes — task breakdown, build order, phases, exact gates, and per-task subagent dispatch. Use when the user wants to scope this out before building, asks for a plan plus handoff, or wants an orchestrated build — e.g. "/rk2-plan add CSV export". Picks the tier itself (mid / pro / max) from a three-question tree and declares the choice with reasoning. Not for small do-it-now tasks, pure research, or same-session implementation.
 ---
 
 # rk2-plan — plan a build, any tier
