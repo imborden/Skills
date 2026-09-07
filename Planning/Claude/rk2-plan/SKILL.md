@@ -29,9 +29,10 @@ A spec/design doc is an input, not a ritual: if one exists (path given, or produ
 
 1. **Discovery first — never plan on assumptions.** Explore the codebase (read-only; Explore agents for breadth) AND ask the human clarifying questions (AskUserQuestion) to resolve scope, approach, and unknowns. Find existing utilities/patterns to reuse before proposing new code.
 2. **Write the plan doc** to `docs/plans/incomplete/YYYY-MM-DD-<kebab-slug>.md` (create dirs if missing). Use `plan-template.md` in this skill; delete the sections marked for other tiers.
-3. **Fill the Run config block** — `Tier:`, promotion command (`git mv` vs `mv`), Workflow authorization (ask the human now, **recommending "authorized"** — it keeps per-task dispatch/review traffic out of the orchestrator's context; on a pro/Opus orchestrator, "not authorized" is typically the single most expensive line in the Run config), hard rules. Do NOT embed an execution protocol or handoff prompt — that lives in `rk2-exec`.
-4. **End by printing the one-line kickoff**: `/rk2-exec docs/plans/incomplete/YYYY-MM-DD-<slug>.md` — nothing more.
-5. **STOP.** Do not build, dispatch agents, or create teams. The fresh session does that.
+3. **Fill the Run config block** — `Tier:`, `Rk2 dir:`, promotion command (`git mv` vs `mv`), Workflow authorization (ask the human now, **recommending "authorized"** — it keeps per-task dispatch/review traffic out of the orchestrator's context; on a pro/Opus orchestrator, "not authorized" is typically the single most expensive line in the Run config), hard rules. Do NOT embed an execution protocol or handoff prompt — that lives in `rk2-exec`.
+4. **Lint the plan:** `python3 docs/plans/rk2/rk2-lint.py <plan path>` → `OK`. Fix every reported line; do not print the kickoff until it passes.
+5. **End by printing the one-line kickoff**: `/rk2-exec docs/plans/incomplete/YYYY-MM-DD-<slug>.md` — nothing more.
+6. **STOP.** Do not build, dispatch agents, or create teams. The fresh session does that.
 
 ## Resolve environment-dependent facts at authoring time
 
@@ -39,7 +40,7 @@ Anything that depends on *where* things live fails silently when the executor gu
 
 - **Promotion command:** run `git check-ignore docs/`. If `docs/` is ignored, the done-signal is plain `mv` (`git mv` errors on ignored paths). Bake the correct one in — never hardcode `git mv` blindly.
 - **cwd-dependent commands:** if the app lives in a subdirectory, write gates that don't assume the working directory — `npm --prefix <app> test`, not a bare `npm test`. Resolve `<app>` now.
-- **Prompt paths** are hardcoded in `rk2-exec` (they ship in this skill's `prompts/` dir) — nothing to resolve per-plan. Only if the build runs on a *different machine*: copy the prompt files into the repo next to the plan and note their repo-relative paths in the Run config.
+- **rk2 support files:** copy this skill's `prompts/*.md` and `bin/rk2-lint.py` into `docs/plans/rk2/` in the repo if absent or older (`cp -n` is not enough — compare with `diff -q`). Write `**Rk2 dir:** docs/plans/rk2` in Run config. rk2-exec reads cards and lint from there only, so clones and other machines work.
 
 ## Planning principles — front-load what gets expensive late
 

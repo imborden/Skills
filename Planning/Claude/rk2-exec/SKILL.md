@@ -11,15 +11,15 @@ The argument is the plan path. **Read the plan in full first.** Its Run config `
 
 - Confirm you are on a feature branch — create one if on the default branch.
 - Read the Run config: `Tier:`, promotion command, Workflow authorization (mid/pro), hard rules.
+- **Lint:** `python3 <Rk2 dir>/rk2-lint.py <plan>` → `OK`. Anything else is a plan error: STOP and paste the lint output to the human. Do not dispatch.
 
-## Prompt files (absolute paths — all tiers)
+## Support files (all tiers)
 
-- Combined (default review): `/Users/jeffborden/.claude/skills/rk2-plan/prompts/combined-reviewer.md`
-- Spec-compliance: `/Users/jeffborden/.claude/skills/rk2-plan/prompts/spec-reviewer.md`
-- Code-quality: `/Users/jeffborden/.claude/skills/rk2-plan/prompts/quality-reviewer.md`
-- Adversarial critic (pro/max): `/Users/jeffborden/.claude/skills/rk2-plan/prompts/adversarial-critic.md`
-
-If a needed file can't be read at its path (or the plan's Run config names repo-local copies, use those), **STOP and ask the human — never synthesize a reviewer/critic prompt inline.**
+All four prompt cards and `rk2-lint.py` live under the plan's Run config **`Rk2 dir:`**
+(repo-relative, normally `docs/plans/rk2/`): `combined-reviewer.md`, `spec-reviewer.md`,
+`quality-reviewer.md`, `adversarial-critic.md`. If the Run config has no `Rk2 dir:` line,
+or a needed file can't be read there, **STOP and ask the human — never synthesize a
+reviewer/critic prompt inline, never fall back to a home-directory path.**
 
 ## Context discipline (all tiers)
 

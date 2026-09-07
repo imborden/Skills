@@ -42,6 +42,7 @@ and the `BlockedBy` DAG.
 > This block holds only the facts rk2-exec reads from the plan.
 
 - **Tier:** `<mid | pro | max>`
+- **Rk2 dir:** `docs/plans/rk2` — prompt cards + lint, copied from the skill at authoring time
 - **Promotion command:** `<git mv | mv — resolved at authoring time via 'git check-ignore docs/'>`
 - **Workflow authorization:** `<"authorized" | "not authorized" — the human's answer at planning time; mid/pro only, delete at max>`
 - **Hard rules:** `<project-specific invariants agents must not violate>`
