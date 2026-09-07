@@ -14,7 +14,7 @@ Produce a **plan document** that a *fresh* session executes via **`rk2-exec`** �
 **Gate 0 — is a plan even warranted?** Small task you'd just do now, pure research, or same-session work → no plan skill. Just do it (or use `superpowers:subagent-driven-development`). This family is for builds worth a written plan + a handoff to a fresh session.
 
 1. **3+ workstreams that run concurrently, multiple subsystems (service + client + infra), or long-running gates worth monitoring while other work proceeds?** → **max** (Opus team-lead + persistent roster on a shared task board). Serial work or one subsystem is NOT max — keep going.
-2. **Hardest single task Opus-level (novel architecture, subtle cross-cutting logic, a real "which approach?" call) OR safety-critical (auth, payments, data migrations, external API contracts, PII, prod infra)?** → **pro** (Opus orchestrator + adversarial critique on the risky tasks).
+2. **Hardest single task Opus-level (novel architecture, subtle cross-cutting logic, a real "which approach?" call) OR safety-critical — the build **changes** auth/session logic, payments, data migrations, external API contracts, PII handling, or prod infra? (Merely sitting behind existing auth middleware does not count.)** → **pro** (Opus orchestrator + adversarial critique on the risky tasks).
 3. **Otherwise** — medium, well-understood, every gate expressible as an exact command, no task needs more than Sonnet → **mid** (Sonnet orchestrator).
 
 One-line tells: "I could almost do this myself; every gate is a command" → mid. "One hard/risky thing, getting it wrong is expensive" → pro. "I can list 3+ workstreams running at the same time" → max.

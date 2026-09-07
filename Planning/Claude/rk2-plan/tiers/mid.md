@@ -5,7 +5,7 @@ Medium, well-understood builds. A fresh **Sonnet** orchestrator executes the pla
 ## Escalate to pro instead when
 
 - Any single task needs Opus-level reasoning (novel architecture, subtle cross-cutting logic, real "which approach?" calls). A `[sonnet]` task with hand-wavy "design the…" scope is the tell.
-- The build touches auth, payments, data migrations, external API contracts, PII, or prod infra — those want the `[adversarial]` critique mid deliberately omits.
+- The build changes auth logic (not merely uses it), payments, data migrations, external API contracts, PII, or prod infra — those want the `[adversarial]` critique mid deliberately omits.
 - A gate can only be stated as prose. If you can't write it as a command, the build needs a stronger orchestrator.
 
 ## Mid-specific rules
