@@ -33,7 +33,7 @@ requirement — not a magic number, naming issue, or style problem. Leave blank 
 ## Where to look
 
 Working dir / worktree: [repo or worktree path]
-Changed files / commit range: [paths or BASE_SHA..HEAD_SHA]
+Changed files: [paths from `git status --porcelain` — the task is not committed yet; after a bounce, the fix's diff only]
 
 ## Pass 1 — spec compliance (read the diff, don't trust the report)
 
@@ -47,6 +47,8 @@ Correctness & edge cases; tests that verify behavior (not mirror the implementat
 clarity & fit with the codebase's existing patterns; YAGNI. Judge what THIS change added.
 
 ## Report exactly one verdict
+
+The verdict line is the FIRST line of your output, nothing before it.
 
 - `✅ APPROVED` — spec-complete and no Critical/Important quality issues.
 - `❌ CHANGES REQUESTED` — bulleted findings only, each tagged SPEC or QUALITY with a

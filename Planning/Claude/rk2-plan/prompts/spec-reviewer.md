@@ -26,7 +26,7 @@ it as the complete requirement. Do not read other tasks' sections."]
 ## Where to look
 
 Working dir / worktree: [repo or worktree path]
-Changed files / commit range: [paths or BASE_SHA..HEAD_SHA]
+Changed files: [paths from `git status --porcelain` — the task is not committed yet; after a bounce, the fix's diff only]
 
 ## CRITICAL: do not trust the report
 
@@ -47,6 +47,8 @@ schema field?
 Check the task's `Verify` command was really run and really passes (re-run it if cheap).
 
 ## Report exactly one verdict
+
+The verdict line is the FIRST line of your output, nothing before it.
 
 - `✅ SPEC COMPLIANT` — everything in the spec is present, nothing extra, after reading the code.
 - `❌ ISSUES FOUND` — then a bulleted list, each with a `file:line` reference and whether it is

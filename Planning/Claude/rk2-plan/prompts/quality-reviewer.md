@@ -29,7 +29,7 @@ why — but do NOT issue a Critical/Important verdict over it. Leave blank if th
 ## Where to look
 
 Working dir / worktree: [repo or worktree path]
-Changed files / commit range: [paths or BASE_SHA..HEAD_SHA]
+Changed files: [paths from `git status --porcelain` — the task is not committed yet; after a bounce, the fix's diff only]
 
 ## Your job — read the diff and assess
 
@@ -46,6 +46,8 @@ utilities instead of reinventing? Judge what THIS change added — don't flag pr
 Do NOT re-litigate spec compliance — that already passed. Focus on how well it's built.
 
 ## Report
+
+The verdict line is the FIRST line of your output, nothing before it.
 
 - **Issues:** grouped `Critical` / `Important` / `Minor`, each with a `file:line` and a concrete fix.
 - **Verdict:** `✅ APPROVED` (no Critical/Important issues) or `❌ CHANGES REQUESTED` (list what blocks).
