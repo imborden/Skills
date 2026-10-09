@@ -11,7 +11,7 @@ Medium, well-understood builds. A fresh **Sonnet** orchestrator executes the pla
 ## Mid-specific rules
 
 - **No `[adversarial]` phases.** That loop needs confidence-judgment a Sonnet orchestrator shouldn't run.
-- **Context budget is the binding constraint: cap each plan at ~6 tasks / 2–3 phases.** A Sonnet orchestrator running the full loop clears roughly 4–6 tasks per session. Bigger build → split into multiple plan docs at a hard gate where the halves share no implementer context (e.g. server fully green before any client file is touched). Each part kicks off separately via `/rk2-exec`; part N+1's Context section states "part N is complete" and points at its plan in `docs/plans/complete/`.
+- **Context budget is the binding constraint: cap each plan at ~6 tasks / 2–3 phases.** A Sonnet orchestrator running the full loop clears roughly 4–6 tasks per session. Bigger build → divide into parts per SKILL.md *Divide into parts* (cut at a behaviour probe, an independent workstream, or a fully-green gate — the cap decides *whether* to divide, the joints decide *where*).
 - **The orchestrator reads the plan and nothing else.** No grounding reads of source, no re-reading diffs to second-guess reviewers. Each task's `Grounding:` files are for *its implementer*.
 - **Escalation bar is low.** The executor stops and asks on any non-doc-backed surprise; a mid task that turns out to need Opus reasoning stops the build with "this belongs in pro." Author tasks specific enough that this never fires.
 

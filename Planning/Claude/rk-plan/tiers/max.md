@@ -26,6 +26,8 @@ Single coherent workstream, no real parallelism, no standing-team benefit — ev
 | `quality-reviewer` | sonnet | Standing code-quality review after spec passes |
 | `integration-tester` | sonnet | Cross-workstream integration gates; drives `Monitor` for long suites/deploys |
 
+**Parts at max:** cut only after a behaviour-review human probe or at a fully-green gate (SKILL.md *Divide into parts*, rules 1 and 3). Never serialize concurrent workstreams into parts — concurrency is why the build is at max.
+
 **Plan pre-critique:** the plan doc itself gets one adversarial pass (the standing critic) before Phase 1 code — a flawed DAG caught at Phase 0 is enormously cheaper than at Phase 3. The template's Phase 0 includes this; keep it.
 
 **Worktree isolation:** parallel implementers never share a working tree (`isolation:"worktree"`); integration happens at gate barriers, not continuously. Two tasks touching the same files in one phase is a plan error — serialize with a `BlockedBy` edge or move phases.

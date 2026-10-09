@@ -1,6 +1,6 @@
 # Plan — add a CSV export endpoint
 
-> Execute with **`/rk2-exec docs/plans/incomplete/2026-04-02-csv-export.md`** in a fresh session.
+> Execute with **`/rk-exec docs/plans/incomplete/2026-04-02-csv-export.md`** in a fresh session.
 
 ## Context
 
@@ -20,7 +20,7 @@ Verify covers the quoting path either way.
 ## Run config
 
 - **Tier:** `mid`
-- **Rk2 dir:** `docs/plans/rk2` — prompt cards + lint, copied from the skill at authoring time
+- **Rk dir:** `docs/plans/rk` — prompt cards + lint, copied from the skill at authoring time
 - **Promotion command:** `git mv`
 - **Workflow authorization:** `authorized`
 - **Hard rules:** the route reuses `listReports()` — no second query path. No new dependencies;

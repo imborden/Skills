@@ -1,14 +1,15 @@
-<!-- FIXTURE: trips exactly ten rk2-lint findings. Expected `<line>: CODE` pairs:
-     1: RUNCFG     - Run config omits the Rk2-dir line
-     28: SCHEMAREF  - Phase 1 gate asserts a boolean schema field
-     39: RECEIVES   - Task 2 follows another task in a pipeline phase with no inbound field
-     39: COMMIT     - Task 2 declares no commit message
-     48: PHASEHDR   - Phase 2 header carries no execution strategy
-     48: GATE       - Phase 2 has no gate at all
-     50: TAG        - Task 3 heading carries no model tag
-     50: GATEONLY   - Task 3 is gate-only but its check runs no real tool
-     59: VERIFY     - Task 4 declares no check
-     65: BUILDLOG   - the plan has no build-log section
+<!-- FIXTURE: trips exactly eleven rk-lint findings. Expected `<line>: CODE` pairs:
+     1: RUNCFG     - Run config omits the Rk-dir line
+     20: PART       - Run config declares part three of two
+     29: SCHEMAREF  - Phase 1 gate asserts a boolean schema field
+     40: RECEIVES   - Task 2 follows another task in a pipeline phase with no inbound field
+     40: COMMIT     - Task 2 declares no commit message
+     49: PHASEHDR   - Phase 2 header carries no execution strategy
+     49: GATE       - Phase 2 has no gate at all
+     51: TAG        - Task 3 heading carries no model tag
+     51: GATEONLY   - Task 3 is gate-only but its check runs no real tool
+     60: VERIFY     - Task 4 declares no check
+     66: BUILDLOG   - the plan has no build-log section
      Keep this comment free of the literal field labels the lint greps for globally,
      or it will satisfy the very checks the fixture is meant to fail. -->
 
@@ -17,6 +18,7 @@
 ## Run config
 
 - **Tier:** `mid`
+- **Part:** 3 of 2
 - **Promotion command:** `git mv`
 - **Workflow authorization:** `authorized`
 - **Hard rules:** none — this fixture exists only to be rejected.

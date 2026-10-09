@@ -28,7 +28,7 @@ it as the complete requirement. Do not read other tasks' sections."]
 Working dir / worktree: [repo or worktree path]
 Changed files: [paths from `git status --porcelain` — the task is not committed yet; after a bounce, the fix's diff only]
 
-## CRITICAL: do not trust the report
+## Don't trust the report
 
 The implementer may be optimistic or wrong. Read the actual diff. Do NOT take their word for what
 they implemented, their completeness claims, or their interpretation of the requirements.
@@ -51,8 +51,10 @@ Check the task's `Verify` command was really run and really passes (re-run it if
 The verdict line is the FIRST line of your output, nothing before it.
 
 - `✅ SPEC COMPLIANT` — everything in the spec is present, nothing extra, after reading the code.
-- `❌ ISSUES FOUND` — then a bulleted list, each with a `file:line` reference and whether it is
-  MISSING, EXTRA, or WRONG. Be specific enough that the implementer can fix without guessing.
+  The SECOND line is `Evidence: <command you ran> → <its result line>`.
+- `❌ ISSUES FOUND` — then a bulleted list, each with a `file:line` reference, whether it is
+  MISSING, EXTRA, or WRONG, and how to show it (the spec line it violates, or a command that
+  exposes it). Be specific enough that the implementer can fix without guessing.
 
 Output cap — you are a gate, not a coach. On ✅: the verdict line plus at most three sentences of
 evidence, nothing else. On ❌: the failure bullets only — never restate what passed, no summaries,

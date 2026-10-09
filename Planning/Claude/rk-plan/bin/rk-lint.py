@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""rk2-lint.py - mechanize the rk2 plan-format rules. Stdlib only, Python 3.9 compatible.
+"""rk-lint.py - mechanize the rk plan-format rules. Stdlib only, Python 3.9 compatible.
 
-Usage: python3 rk2-lint.py <plan.md>
+Usage: python3 rk-lint.py <plan.md>
 Prints `OK` and exits 0 when clean; otherwise one `<line>: <CODE> <message>` per finding,
 sorted by line, then exits 1. Exits 2 with a usage line on bad args or an unreadable file.
 
 Codes:
-  RUNCFG    - Run config needs **Tier:** (mid|pro|max), **Promotion command:** naming `git mv`/`mv`, **Rk2 dir:**; **Workflow authorization:** present iff tier is not max.
+  RUNCFG    - Run config needs **Tier:** (mid|pro|max), **Promotion command:** naming `git mv`/`mv`, **Rk dir:**; **Workflow authorization:** present iff tier is not max.
   PHASEHDR  - each `## Phase N -` carries exactly one of [parallel]|[pipeline]|[sequential] (Phase 0 at max may carry [orchestrator]); [adversarial] never with [pipeline], never at mid.
   GATE      - every phase has a **Gate:** line with a backtick command and an arrow.
   VERIFY    - every `### Task` has a **Verify:** line with a backtick command and an arrow.
@@ -19,16 +19,21 @@ Codes:
   TAG       - every `### Task` heading ends with `[haiku]`, `[haiku] (verbatim)`, `[sonnet]` or `[orchestrator]`.
   MAXFIELDS - at max, every task has **Owner role:** and **BlockedBy:**.
   BUILDLOG  - a `## Build log` heading exists.
+  PART      - multi-part plans only (a **Part:** line): `N of M` with 1 <= N <= M; file saved as `...-p<N>.md`; a **Branch:** line; part N>1 names the prior part under docs/plans/complete/ and carries a **Prerequisite gate:**; every part but the last has a `## Next part` holding the next kickoff.
 
 These mechanize family invariants 1, 2, 5, 7, 8 and 10 - see `Planning/Claude/CONVENTIONS.md`
 for the full list; don't restate it here.
 """
 
+import os
 import re
 import sys
 
+PLAN_PATH = ""
+
 PHASE_RE = re.compile(r'^##\s+Phase\s+(\d+)\s*[—-]')
 TASK_RE = re.compile(r'^###\s+Task\b')
+PART_RE = re.compile(r'\*\*Part:\*\*\s*`?(\d+)\s+of\s+(\d+)')
 SCHEMA_KV = re.compile(r'"(\w+)"\s*:\s*(\[?\s*"?\w+"?\s*\]?)')
 ARROW = '→'
 STRATS = ("[parallel]", "[pipeline]", "[sequential]")
@@ -95,8 +100,8 @@ def check_runcfg(lines, tier):
         out.append((1, "RUNCFG", "Run config has no **Promotion command:** line"))
     elif not re.search(r'\bgit mv\b|\bmv\b', lines[i]):
         out.append((i + 1, "RUNCFG", "**Promotion command:** must name `git mv` or `mv`"))
-    if find("**Rk2 dir:**") is None:
-        out.append((1, "RUNCFG", "Run config has no **Rk2 dir:** line"))
+    if find("**Rk dir:**") is None:
+        out.append((1, "RUNCFG", "Run config has no **Rk dir:** line"))
     w = find("**Workflow authorization:**")
     if tier == "max" and w is not None:
         out.append((w + 1, "RUNCFG", "**Workflow authorization:** must be deleted at max"))
@@ -219,20 +224,55 @@ def check_buildlog(lines, tier):
         return []
     return [(len(lines), "BUILDLOG", "plan has no `## Build log` section")]
 
+def check_part(lines, tier):
+    i = next((k for k, l in enumerate(lines) if "**Part:**" in l), None)
+    if i is None:
+        return []
+    m = PART_RE.search(lines[i])
+    if not m or not 1 <= int(m.group(1)) <= int(m.group(2)):
+        return [(i + 1, "PART", "**Part:** must read `N of M` with 1 <= N <= M")]
+    n, total = int(m.group(1)), int(m.group(2))
+    out = []
+    if not os.path.basename(PLAN_PATH).endswith("-p%d.md" % n):
+        out.append((i + 1, "PART", "part %d must be saved as `...-p%d.md`" % (n, n)))
+    if not any("**Branch:**" in l for l in lines):
+        out.append((i + 1, "PART", "a multi-part plan needs a **Branch:** line"))
+    if n > 1:
+        if not re.search(r'docs/plans/complete/\S+-p%d\.md' % (n - 1), lines[i]):
+            out.append((i + 1, "PART", "part %d must name the prior part as docs/plans/complete/...-p%d.md" % (n, n - 1)))
+        j = next((k for k, l in enumerate(lines) if "**Prerequisite gate:**" in l), None)
+        if j is None or "`" not in lines[j] or ARROW not in lines[j]:
+            out.append(((i if j is None else j) + 1, "PART",
+                        "part %d needs a **Prerequisite gate:** with a backtick command and an arrow" % n))
+    nxt = next((k for k, l in enumerate(lines) if l.startswith("## Next part")), None)
+    if n < total:
+        if nxt is None:
+            out.append((len(lines), "PART", "part %d of %d needs a `## Next part` section" % (n, total)))
+        else:
+            end = next((k for k in range(nxt + 1, len(lines)) if lines[k].startswith("## ")), len(lines))
+            body = "\n".join(lines[nxt:end])
+            if "/rk-exec docs/plans/incomplete/" not in body or "-p%d.md" % (n + 1) not in body:
+                out.append((nxt + 1, "PART", "`## Next part` must hold `/rk-exec docs/plans/incomplete/...-p%d.md`" % (n + 1)))
+    elif nxt is not None:
+        out.append((nxt + 1, "PART", "the final part has no `## Next part`"))
+    return out
+
 CHECKS = (check_runcfg, check_phasehdr, check_gate, check_verify, check_commit,
           check_files, check_gateonly, check_receives, check_schemaref,
-          check_midcap, check_tag, check_maxfields, check_buildlog)
+          check_midcap, check_tag, check_maxfields, check_buildlog, check_part)
 
 def main(argv):
     if len(argv) != 2:
-        sys.stderr.write("usage: rk2-lint.py <plan.md>\n")
+        sys.stderr.write("usage: rk-lint.py <plan.md>\n")
         return 2
     try:
         with open(argv[1], encoding="utf-8") as fh:
             lines = fh.read().split("\n")
     except OSError as exc:
-        sys.stderr.write("usage: rk2-lint.py <plan.md> (cannot read %s: %s)\n" % (argv[1], exc.strerror))
+        sys.stderr.write("usage: rk-lint.py <plan.md> (cannot read %s: %s)\n" % (argv[1], exc.strerror))
         return 2
+    global PLAN_PATH
+    PLAN_PATH = argv[1]
     tier = get_tier(lines)
     found = []
     for check in CHECKS:

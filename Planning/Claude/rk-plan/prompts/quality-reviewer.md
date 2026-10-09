@@ -49,8 +49,10 @@ Do NOT re-litigate spec compliance — that already passed. Focus on how well it
 
 The verdict line is the FIRST line of your output, nothing before it.
 
-- **Issues:** grouped `Critical` / `Important` / `Minor`, each with a `file:line` and a concrete fix.
-- **Verdict:** `✅ APPROVED` (no Critical/Important issues) or `❌ CHANGES REQUESTED` (list what blocks).
+- **Issues:** grouped `Critical` / `Important` / `Minor`, each with a `file:line`, why it's wrong,
+  and a concrete fix. Critical/Important issues also say how to show it fails (a command or input).
+- **Verdict:** `✅ APPROVED` (no Critical/Important issues) — SECOND line `Evidence: <command you ran> → <its result line>` —
+  or `❌ CHANGES REQUESTED` (list what blocks).
 
 Output cap: on ✅ APPROVED, the verdict line plus at most three sentences (including any Minor notes) —
 no strengths section, no restating what's fine. On ❌, the blocking bullets only. Proportionate rigor:

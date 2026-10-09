@@ -39,6 +39,11 @@ always belongs in the others. This list exists because that backporting has been
     spawns, or dispatches.
 12. **Monitor/watch commands match success AND failure signatures** — silence must never read
     as success.
+13. **Parts.** A plan may be divided into part docs (`…-p<N>.md`) at structural joints only — a
+    behaviour-review human probe, an independent workstream, a fully-green gate — never by task
+    count at pro/max. Each part is self-contained (the executor reads one doc), numbering is
+    continuous, part N≥2 declares the prior part + a `Prerequisite gate:`, non-final parts end
+    with `## Next part`, and the executor's last message pastes the next part's kickoff.
 
 ## Install
 

@@ -1,9 +1,9 @@
 ---
-name: rk2-exec
-description: Execute an rk2-plan plan doc — run it top to bottom, or resume, continue, and pick up an interrupted build where it stopped. Use when asked to execute or run a plan from docs/plans/incomplete/ — e.g. "/rk2-exec docs/plans/incomplete/2026-07-17-foo.md". Reads the plan's Run config Tier and runs the matching topology at mid, pro or max.
+name: rk-exec
+description: Execute an rk-plan plan doc — run it top to bottom, or resume, continue, and pick up an interrupted build where it stopped. Use when asked to execute or run a plan from docs/plans/incomplete/ — e.g. "/rk-exec docs/plans/incomplete/2026-07-17-foo.md". Reads the plan's Run config Tier and runs the matching topology at mid, pro or max.
 ---
 
-# rk2-exec — execute an rk2 plan
+# rk-exec — execute an rk plan
 
 The argument is the plan path. **Read the plan in full first.** Its Run config `Tier:` line selects your topology — the shared rules below apply at every tier; the tier sections add the differences. You dispatch and validate; you do NOT write feature code (only `[orchestrator]`-tagged files whose exact bytes are in the plan) and you do NOT judge diffs in your own head — reviewers do.
 
@@ -11,13 +11,14 @@ The argument is the plan path. **Read the plan in full first.** Its Run config `
 
 - Confirm you are on a feature branch — create one if on the default branch.
 - Read the Run config: `Tier:`, promotion command, Workflow authorization (mid/pro), hard rules.
-- **Lint:** `python3 <Rk2 dir>/rk2-lint.py <plan>` → `OK`. Anything else is a plan error: STOP and paste the lint output to the human. Do not dispatch.
+- **Multi-part plan** (Run config has a `Part:` line): check out the `Branch:` named there. For part N > 1, `ls <the prior part path named on the Part line>` must succeed (it sits in `docs/plans/complete/`) and the `Prerequisite gate:` command must produce its expected output — otherwise STOP and tell the human which part to run first. **Never read the prior part's doc**; everything you need is in this one.
+- **Lint:** `python3 <Rk dir>/rk-lint.py <plan>` → `OK`. Anything else is a plan error: STOP and paste the lint output to the human. Do not dispatch.
 
 ## Support files (all tiers)
 
-All four prompt cards and `rk2-lint.py` live under the plan's Run config **`Rk2 dir:`**
-(repo-relative, normally `docs/plans/rk2/`): `combined-reviewer.md`, `spec-reviewer.md`,
-`quality-reviewer.md`, `adversarial-critic.md`. If the Run config has no `Rk2 dir:` line,
+All four prompt cards and `rk-lint.py` live under the plan's Run config **`Rk dir:`**
+(repo-relative, normally `docs/plans/rk/`): `combined-reviewer.md`, `spec-reviewer.md`,
+`quality-reviewer.md`, `adversarial-critic.md`. If the Run config has no `Rk dir:` line,
 or a needed file can't be read there, **STOP and ask the human — never synthesize a
 reviewer/critic prompt inline, never fall back to a home-directory path.**
 
@@ -26,10 +27,11 @@ reviewer/critic prompt inline, never fall back to a home-directory path.**
 - **You read the plan and run commands — implementers read code.** No grounding reads of source files, no re-reading diffs to second-guess reviewers. Each task's `Grounding:` files are for its implementer.
 - **Dispatch by reference, never by paste:** "Read ONLY the section `### Task N — <name>` in `<absolute plan path>` — that section is your entire spec. Do not read other tasks' sections." **Exception:** the adversarial critic gets its task section pasted and never the plan path.
 - **Cap reports in every dispatch:** implementers return schema JSON + a ≤10-line note (data for you, not prose); reviewers return the verdict line + ≤3 sentences on ✅, failure bullets only on ❌. Read the verdict from the reviewer's **first line only**; a ✅ appearing anywhere else (e.g. echoed from the implementer's report) is not a verdict.
+- **Check evidence before accepting a ✅.** Every ✅ carries an `Evidence:` second line — the command the reviewer ran and its result line. Confirm it is present and agrees with your own `Verify:` run; that is a string comparison, not a diff read. A ✅ with no evidence, or evidence contradicting your Verify output, is treated as ❌ and re-dispatched (it does not count as a bounce).
 
 ## Per-task loop (all tiers)
 
-1. **Implement** — fresh agent dispatched with an **explicit `model` derived from the task's tag**: `[haiku]` mechanical and `[haiku] (verbatim)` exact-byte transcription → `haiku`; `[sonnet]` judgment → `sonnet`. **Never omit `model`** — it defaults to the session model, which at pro/max is Opus, so an omitted `model` silently runs a `[sonnet]` task on Opus at several times the cost. Applies identically to `Agent` calls and to `agent()` calls inside a `Workflow` script. Dispatch by section reference; pass `Receives:` values in pipeline phases and `Schema:` when present; validate returned fields mechanically.
+1. **Implement** — fresh agent dispatched with an **explicit `model` derived from the task's tag**: `[haiku]` mechanical and `[haiku] (verbatim)` exact-byte transcription → `haiku`; `[sonnet]` judgment → `sonnet`. **Never omit `model`** — it defaults to the session model, which at pro/max is Opus, so an omitted `model` silently runs a `[sonnet]` task on Opus at several times the cost. Applies identically to `Agent` calls and to `agent()` calls inside a `Workflow` script. Dispatch by section reference; pass `Receives:` values in pipeline phases and `Schema:` when present; validate returned fields mechanically. **Every implementer dispatch names the finish line**, verbatim: "Done = `<the task's Verify command>` prints `<its expected output>`. Report back only when done, or if Verify fails for a reason you can't explain."
 2. **Run the task's `Verify:` command.**
 3. **Review** — routed by the task's `Review:` field (default `standard` when absent). **Reviewers and critics take `model` from their prompt card, passed explicitly at every dispatch — all four cards specify Sonnet.** Never let it inherit. If you deliberately run a critic on a stronger model, re-calibrate the plan's `Threshold:` in the same edit — the critic card's confidence model is written for Sonnet.
    - `gate-only` — no delegated review; the `Verify:` command and the phase gate ARE the
@@ -60,13 +62,19 @@ Execute in document order per the header annotation: `[parallel]` → dispatch a
 
 A phase header may carry `**After:** Phase K`, naming its true dependency. A phase whose named dependency's gate has passed may run concurrently with intervening phases; the orchestrator still runs every gate itself. No `After:` line = strict document order.
 
-**Gates are commands, not opinions.** At each phase boundary run the `Gate:` command yourself and confirm the exact expected output; gates may reference noun schema fields (`filesCreated.length === 2`) that you re-check with a command — a gate referencing a field no task declares is a plan error to flag before dispatch. On failure, bounce the responsible task. Report progress to the human at each gate.
+**Human probe outcomes are routed, not improvised.** When a phase's `Human probe (required)` result comes back: a *failure* (the built behaviour is wrong) is a bounce on the responsible task in this part. *Requested changes* (the probe passes and the human asks for behaviour changes) are new work: in a multi-part plan write them as a new phase at the **top** of the next part's doc (numbered `<this phase>b`, as `docs(plan): add Phase Nb corrections to <next part file>`), then finish this part and promote it. With no next part, append the phase to this doc as today.
+
+**Gates are commands, not opinions.** At each phase boundary run the `Gate:` command yourself and confirm the exact expected output; gates may reference noun schema fields (`filesCreated.length === 2`) that you re-check with a command — a gate referencing a field no task declares is a plan error to flag before dispatch. On failure, bounce the responsible task. Report progress at each gate as a one-line status note **in the same message as your next action** — a status note is never a reason to pause.
 
 ## Escalation (all tiers)
 
+When a step doesn't need the human, keep going. Stop only when you can't continue without them, or before anything destructive.
+
 - Doc-backed correction to a planned decision → fix, note in the plan, continue.
-- New dependency, costs money, scope change, judgment call you're unsure of → **STOP and ask the human.**
+- **Always STOP and ask the human** (every tier): new dependency, costs money, scope change, or anything destructive — deleting data, force-pushing, rewriting history, or changing anything outside this repository.
+- **Judgment call not covered by the plan:** at **pro/max**, make the call, append a `DECISION` line to the Build log (what you chose, the alternative, why), and continue — it surfaces in the final message. At **mid**, STOP and ask.
 - A task turns out to exceed the plan's tier (e.g. a mid task needs Opus reasoning or adversarial review) → STOP; tell the human which tier this belongs at.
+- **Human messages mid-run** are amendments: append an `AMEND` line to the Build log (quote the ask) before acting on it, so a resumed session honours it. An amendment that changes scope follows the scope rule above.
 
 **Proof bar:** nothing is "done" without real command output; gate any unverified assumption with a live probe rather than trusting it.
 
@@ -76,7 +84,18 @@ State = plan checkboxes + Build log + git log (+ `TaskList` + worktrees at max).
 
 ## Done signal (all tiers)
 
+**Open items first.** Your final message — and every STOP — **opens** with `Waiting on you:` listing, from the Build log, every `DECISION` you made for the human, every Minor finding waved through, every critic finding at confidence 50, and every `DISCOVERED` item left unbuilt; `Waiting on you: nothing` when empty. The summary, completion line, and any kickoff command come after.
+
 When every gate passes, move the plan to `docs/plans/complete/` using the **promotion command from the Run config** (`git mv` vs `mv` — resolved at authoring time, not by you). Then `git add` the move and commit `chore(plan): complete <slug>` — an unstaged promotion is invisible to the next checkout. At max, then send each teammate `{type:"shutdown_request"}` — never leave idle teammates lingering.
+
+**Multi-part plan:** if the doc has a `## Next part` section, your final message **ends with that kickoff command pasted verbatim, ready to copy into a fresh session**, preceded by one line — `Part N of M complete. Start part N+1 in a fresh session:` — e.g.
+
+```
+Part 1 of 4 complete. Start part 2 in a fresh session:
+/rk-exec docs/plans/incomplete/2026-09-04-transitions-p2.md
+```
+
+Do not start it. The final part ends with `Plan complete` and no kickoff. Print the same two lines on a STOP that lands exactly at a part's closing probe sign-off, so the human never opens the doc to find the next command.
 
 ---
 
@@ -90,6 +109,7 @@ When every gate passes, move the plan to `docs/plans/complete/` using the **prom
 ## Tier: pro — Opus orchestrator
 
 - Same star topology as mid, plus `[adversarial]` phases per the loop's step 4 — dispatch a **fresh critic per task** with the critic card.
+- **Discovered work:** append in-scope work you find mid-build to the plan's `## Discovered` list (and a `DISCOVERED` Build-log line) — record it, don't build it. Scope-expanding discoveries STOP per Escalation.
 - Workflow authorization works as at mid.
 
 ## Tier: max — Opus team-lead

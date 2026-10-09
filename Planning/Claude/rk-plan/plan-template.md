@@ -1,106 +1,142 @@
 # Plan — <feature title>
 
-> Save as `docs/plans/incomplete/YYYY-MM-DD-<kebab-slug>.md`. The orchestrator moves
-> this file to `docs/plans/complete/` when every gate passes.
+> Save as `docs/plans/incomplete/YYYY-MM-DD-<kebab-slug>.md`. The executor moves this
+> file to `docs/plans/complete/` when every gate passes.
 >
-> This is a **mid-tier** plan: a fresh **Sonnet** orchestrator executes it. Keep every
-> gate a runnable command, keep every task within Sonnet's reach, and rely on delegated
-> reviewer subagents — not the orchestrator's own taste — for correctness. If any task
-> needs Opus-level reasoning or adversarial critique, this plan belongs in `rk-plan-pro`.
+> One template for all tiers — delete the blocks marked for tiers you're not using.
+> Multi-part plan (see SKILL.md *Divide into parts*)? Save as `…-<kebab-slug>-p<N>.md`, keep the
+> MULTI-PART ONLY lines, number phases/tasks continuously across parts.
 
 ## Context
 
+<!-- Part ≥ 2: one paragraph — "Part N of M. p(N-1) delivered …; this part delivers …" — plus this
+     part's required inputs. The full why/scope/assumptions live in p1. -->
 Why this change is being made — the problem/need, what prompted it, the intended
 outcome. State the confirmed **scope** (what's in / explicitly out). 2–5 sentences.
 
 **Required inputs (from the human):** test data, URLs, credentials, sample files — name
 them so the build can't stall mid-run waiting on them.
-**Unverified assumptions:** anything the build rests on but hasn't been confirmed (scope,
-auth, API/response shapes). The riskiest ones get a live probe in Phase 1's gate.
+**Unverified assumptions:** anything the build rests on but hasn't been confirmed, each with
+where you looked. The riskiest ones get a live probe in Phase 1's gate.
 
-## Architecture (optional, 1 paragraph)
+## Architecture (optional at mid/pro — 1 paragraph; REQUIRED at max)
 
-The shape of the solution and the key decision(s). Skip if trivial.
+The shape of the solution and the key decision(s). At **max**, also the workstream
+decomposition: which streams are independent vs. dependent — this drives the roster
+and the `BlockedBy` DAG.
 
-## How to run this build — Sonnet-orchestrated, gated, task-by-task
+<!-- MAX ONLY — delete for mid/pro -->
+## Roster
 
-Execute phases in order. Phase headers carry an execution annotation: `[parallel]` (all tasks at once),
-`[pipeline]` (sequential chain with handoff via `**Receives:**`), `[sequential]` (one at a time — the default).
-There is no `[adversarial]` tier in mid plans.
+| Name | Tier | Responsibility |
+|---|---|---|
+| `team-lead` | Opus | Gates + lifecycle; no feature code; promotion + shutdown on done |
+| `impl-a` | sonnet | Claims and builds tasks in its own worktree |
+| `impl-b` | sonnet/haiku | Scale implementer count to parallel workstreams |
+| `adversarial-critic` | Opus/sonnet | Plan pre-critique + safety-critical task critique |
+| `spec-reviewer` | sonnet | Spec-compliance review per task |
+| `quality-reviewer` | sonnet | Code-quality review after spec passes |
+| `integration-tester` | sonnet | Cross-workstream gates; `Monitor` for long suites |
+<!-- END MAX ONLY -->
 
-The **Sonnet orchestrator stays mechanical**: it dispatches one fresh agent per task at the tagged tier
-(`[haiku]`/`[sonnet]`), respecting the phase annotation, and writes verbatim-content (`[orchestrator]`) files
-itself. It does **not** judge diffs in its own head. After each task it runs the per-task loop below.
+## Run config
 
-**Per-task loop (run for every task):**
-1. Dispatch the implementer (task tier), giving it only that task's section (+ `Receives:` in a pipeline). Pass `Schema:` if present.
-2. Run the task's `**Verify:**` command. On failure, bounce the implementer with the output.
-3. Dispatch the **spec reviewer** (`<ABSOLUTE PATH to spec-reviewer-prompt.md>`, Sonnet). On ❌ → bounce implementer with findings, back to step 2. For `[haiku] (verbatim)` tasks this is a byte-identity check and is the ONLY review — skip to step 5 on ✅.
-4. Dispatch the **code-quality reviewer** (`<ABSOLUTE PATH to code-quality-reviewer-prompt.md>`, Sonnet), only after spec ✅, and **skip entirely for `[haiku] (verbatim)` tasks**. When it runs and the task has plan-locked values, fill the reviewer's **Plan-locked content** slot. On ❌ → bounce, back to step 2.
-5. Flip `- [ ]`→`- [x]` and commit with the task's exact `**Commit:**` message.
+> Execute with **`/rk-exec <this file's repo-relative path>`** in a fresh session.
+> The `rk-exec` skill carries the whole execution protocol — do NOT restate it here.
+> This block holds only the facts rk-exec reads from the plan.
 
-**Bounce cap:** steps 2–4 allow at most **3 bounces per task**; on the third failure, STOP and ask the human.
+- **Tier:** `<mid | pro | max>`
+- **Rk dir:** `docs/plans/rk` — prompt cards + lint, copied from the skill at authoring time
+- **Promotion command:** `<git mv | mv — resolved at authoring time via 'git check-ignore docs/'>`
+- **Workflow authorization:** `<"authorized" | "not authorized" — the human's answer at planning time; mid/pro only, delete at max>`
+- **Hard rules:** `<project-specific invariants agents must not violate>`
+<!-- MULTI-PART ONLY — delete for a single-part plan -->
+- **Part:** `<N of M>` — requires `docs/plans/complete/YYYY-MM-DD-<slug>-p<N-1>.md` <!-- p1: `1 of M`, no path -->
+- **Branch:** `feat/<slug>` <!-- every part; p1 creates it, later parts check it out -->
+- **Prerequisite gate:** `<the prior part's closing Gate command, copied verbatim>` → <its expected output> <!-- p≥2 only -->
+<!-- END MULTI-PART ONLY -->
 
-> If either reviewer prompt cannot be read at the path above, **STOP and ask the human** — do NOT synthesize a reviewer prompt inline.
+Tier legend: `[haiku]` mechanical/fully-specified · `[haiku] (verbatim)` dispatched
+exact-byte transcription (byte-identity spec review only) · `[sonnet]` judgment/multi-file
+· `[orchestrator]` verbatim writes the executor does itself. Phase annotations:
+`[parallel]` / `[pipeline]` (`Receives:` required) / `[sequential]` (default);
+`[adversarial]` (pro/max only) composes with `[parallel]`/`[sequential]`, never `[pipeline]`.
 
-At each **phase boundary**, run the `**Gate:**` command yourself and confirm the exact expected output before
-starting the next phase. On gate failure, bounce the responsible task to a fresh agent with the failure output.
-On any surprise that isn't a doc-backed correction (new dependency, cost, scope change, unsure judgment call) →
-**STOP and ask the human.** When every gate passes, move this file to `docs/plans/complete/` using `<git mv | mv — resolved at authoring time via 'git check-ignore docs/'>`.
+---
 
-`[haiku]` = mechanical/fully-specified; `[haiku] (verbatim)` = dispatched exact-byte transcription (spec-compliance review only); `[sonnet]` = judgment/multi-file; `[orchestrator]` = validation + verbatim writes the orchestrator does itself.
+<!-- MAX ONLY — delete for mid/pro -->
+## Phase 0 — Team setup [orchestrator]
+
+**Gate:** `ToolSearch "select:TeamCreate,TaskList,TaskCreate,TaskUpdate,SendMessage"` → all five schemas returned (none missing)
+AND for each roster name N: `SendMessage {to: N, message: "ping"}` → a reply containing `pong` within the team's first turn
+AND `TaskList` → one row per `### Task` heading below, each non-root row showing its `BlockedBy` ids
+AND the pre-critique JSON has `blocking: false`
+
+- [ ] Verify the substrate with the ToolSearch call above. If not, STOP — run this plan at pro tier instead.
+- [ ] `TeamCreate` with `team_name: <slug>`; spawn the roster (implementers with `isolation:"worktree"`); reviewers/critic get their prompt card in the spawn prompt, once; each spawn prompt ends with "reply `pong` to any message that is exactly `ping`".
+- [ ] `TaskCreate` every task below; set `BlockedBy` edges via `TaskUpdate`.
+- [ ] **Plan pre-critique:** `adversarial-critic` reads this plan + DAG, reports failure modes; resolve blocking findings before unblocking Phase 1.
+<!-- END MAX ONLY -->
 
 ---
 
 ## Phase 1 — <title> [parallel|pipeline|sequential]
 
-<!-- Omit the annotation to default to [sequential]. No [adversarial] in mid plans. -->
-
 **Gate:** `<command>` → <exact expected output: string match / count / exit code>
-<!-- MUST be a runnable command with an exact expected result. No prose gates.
-     May reference schema fields: AND testsPassing === true AND filesCreated.length >= 2
-     Make this gate exercise the riskiest unverified assumption (one real call/query)
-     where possible, not just a trivial smoke check. -->
+<!-- MUST be runnable with an exact expected result — no prose gates.
+     Output must be DETERMINISTIC: normalize away timings, paths and run-varying
+     counts inside the command (`| grep -cF 'Build complete!'` → `1`), never assert
+     a bare string against a line that carries a variable suffix.
+     May reference noun schema fields: AND filesCreated.length >= 2 (never implementer-set booleans)
+     Make this gate exercise the riskiest unverified assumption (one real call/query).
+     MAX, long-running gates: run under Monitor emitting success AND failure signals:
+     Monitor: `npm test 2>&1 | grep -E --line-buffered "PASS|FAIL|Error|Killed"` -->
+
+<!-- Independent of the previous phase? Declare the true dependency so the executor can
+     overlap: **After:** Phase K -->
+
+<!-- PRO/MAX adversarial phases add after the Gate:
+**Threshold:** 75
+**Max iterations:** 3
+**Human probe (optional):** <what the human runs live, and when — required when no
+automated gate can touch the real system> -->
 
 ### Task 1 — <name> `[haiku|haiku (verbatim)|sonnet]`
+<!-- MAX ONLY: every task also carries
+**Owner role:** implementer
+**BlockedBy:** —   (task IDs, or — for immediately claimable)
+and safety-critical tasks add: **Adversarial:** yes — threshold 75, max iterations 3 -->
 **Files:** Create/Modify `<exact paths>`
-**Schema:** `{ "filesCreated": ["string"], "testsPassing": "boolean" }`
-<!-- Schema is optional but valued — it lets the orchestrator validate mechanically.
-     Keep it flat (max 2 levels). Omit only when output is hard to schematize. -->
+**Grounding:** `<files the implementer reads before starting — the executor never reads these>`
+**Schema:** `{ "filesCreated": ["string"], "exportedSymbols": ["string"] }`
+<!-- Schema optional but valued; keep flat (max 2 levels). -->
+**Review:** <gate-only | standard | full — omit for standard; gate-only only when Verify is a real automated check>
 
-<!-- Tag a dispatched exact-byte transcription task `[haiku] (verbatim)`: it gets a
-     byte-identity spec-compliance review ONLY and skips code-quality entirely, so the
-     quality reviewer can't flag the plan's own locked bytes as bugs. -->
+<!-- [pipeline] phases: every task except the first MUST include
+**Receives:** Task N output — `{ "fieldName": "value" }` -->
 
-<!-- For [pipeline] phases, every task except the first MUST include:
-**Receives:** Task N output — `{ "fieldName": "value", ... }` -->
-
-<!-- If a NON-verbatim task hard-codes values the plan mandates (fixed class names, hex
-     literals, intentional ordering), list them so the orchestrator can hand them to the
-     code-quality reviewer's Plan-locked content slot:
-**Plan-locked content:** `<the exact names/literals/ordering the reviewer must NOT flag>` -->
+<!-- Non-verbatim task hard-coding plan-mandated values (fixed names, hex literals,
+     intentional ordering)? List them for the quality reviewer's locked-content slot:
+**Plan-locked content:** `<exact names/literals/ordering the reviewer must NOT flag>` -->
 
 - [ ] Step 1: <for haiku: exact content/diff + numbered steps>
 - [ ] Step 2: <exact command to run> → <exact expected output>
 
-<For [haiku] tasks include: exact file paths, exact code or a precise diff, exact
-commands + expected output, and a STOP condition — "if anything differs, stop and
-report, do not improvise.">
+<Haiku tasks include: exact paths, exact code or a precise diff, exact commands +
+expected output, and a STOP condition — "if anything differs, stop and report, do
+not improvise.">
 
-**Verify:** `<runnable command>`
+**Verify:** `<runnable command>` → <exact expected output: string match / count / exit code>
 **Commit:** `<type(scope): message>`
 
 ### Task 2 — <name> `[sonnet]`
-
-<!-- In [pipeline] phases, Task 2 and later must include Receives: -->
-**Receives:** Task 1 output — `{ "fieldName": "value" }`
 **Files:** Create/Modify `<exact paths>`
 **Schema:** `{ "fieldName": "type" }`
 
-... (same shape; sonnet tasks may state intent + constraints rather than verbatim code,
-but the scope must stay within Sonnet's reach — no open-ended design calls.)
+... (sonnet tasks may state intent + constraints rather than verbatim code, but scope
+must stay within Sonnet's reach — no open-ended design calls.)
 
-**Verify:** `<runnable command>`
+**Verify:** `<runnable command>` → <exact expected output: string match / count / exit code>
 **Commit:** `<type(scope): message>`
 
 ---
@@ -110,7 +146,6 @@ but the scope must stay within Sonnet's reach — no open-ended design calls.)
 **Gate:** `<command>` → <exact expected output>
 
 ### Task 3 — ...
-...
 
 ---
 
@@ -126,73 +161,38 @@ but the scope must stay within Sonnet's reach — no open-ended design calls.)
 
 ## Verification (end-to-end)
 
-How to confirm the whole thing works: exact commands to run and their expected output,
-tests to pass. Keep it runnable — the orchestrator executes this, it doesn't eyeball.
+How to confirm the whole thing works: exact commands and expected output. Keep it
+runnable — the executor runs this, it doesn't eyeball. In a multi-part plan this covers this
+part only; the last part's section is the whole-build check.
 
 ---
 
-## Handoff prompt (paste into a fresh Sonnet session in this repo)
+<!-- MULTI-PART ONLY, every part except the last — delete otherwise -->
+## Next part
 
-> You are the **Sonnet orchestrator** for <feature>. The full task-by-task plan is at
-> `docs/plans/incomplete/YYYY-MM-DD-<slug>.md` — read it first, in full.
->
-> **Why:** <one-paragraph context + confirmed scope>.
->
-> **Also read for grounding:** <key files/docs the build depends on>.
->
-> **Your job is to dispatch and validate — you do NOT write feature code and you do NOT
-> judge diffs in your own head.** For each task: dispatch one fresh agent at its tier
-> (`[haiku]` mechanical, `[haiku] (verbatim)` exact-byte transcription, `[sonnet]`
-> judgment), giving it only that task's section. Then run the task's `Verify` command, then
-> dispatch the **spec reviewer** (`<ABSOLUTE PATH to spec-reviewer-prompt.md>`), then — only
-> after it passes, and only for **non-verbatim** tasks — the **code-quality reviewer**
-> (`<ABSOLUTE PATH to code-quality-reviewer-prompt.md>`). Both reviewers run on Sonnet. On
-> any ❌, bounce the same implementer with the findings and re-run from Verify — **max 3
-> bounces per task**, then STOP and ask the human. You only write verbatim-content files
-> yourself when their exact bytes are in the plan and tagged `[orchestrator]`.
->
-> **Verbatim review carve-out:** a `[haiku] (verbatim)` task gets the spec reviewer ONLY
-> (a byte-identity check) and skips code-quality — that reviewer would otherwise flag the
-> plan's own locked bytes (class-name contracts, literals, intentional ordering) as bugs.
-> This carve-out is scoped to verbatim tasks; every non-verbatim task still gets BOTH
-> reviews in order. When the code-quality reviewer runs on a task with mandated values, pass
-> them in its **Plan-locked content** slot so it won't flag them.
->
-> **If you cannot read a reviewer prompt at the path given, STOP and ask the human — never
-> synthesize a reviewer prompt inline.**
->
-> **How to run it:** execute phases in order. `[parallel]` → dispatch all tasks at once,
-> wait, then gate. `[pipeline]` → dispatch in order, injecting each task's validated output
-> into the next via `Receives:`. `[sequential]` (default) → one at a time. There is no
-> adversarial tier. Tasks with `Schema:` expect structured JSON output — pass the schema
-> when dispatching and validate the returned fields. Gate conditions may reference schema
-> fields by name (`testsPassing === true`).
->
-> **Gates are commands, not opinions.** At each phase boundary run the `Gate:` command
-> yourself and confirm the exact expected output before proceeding. Flip `- [ ]`→`- [x]`
-> per task and commit per task with the message in the task. When every gate passes, move
-> this file to `docs/plans/complete/` with `<git mv | mv — the command resolved when this
-> plan was authored>`. On gate failure, bounce that task to a fresh agent with the failure
-> output.
->
-> **Hard rules:** <project-specific invariants the agents must not violate>.
->
-> **Branch:** before Phase 1, confirm you are on a feature branch for this build —
-> create one if you're on the default branch.
->
-> **Proof bar:** nothing is "done" without pasted real command output; gate any unverified
-> assumption with a live probe rather than trusting it.
->
-> **On surprises — escalate readily (you're a Sonnet driver, so when in doubt, stop):**
-> doc-backed corrections to a planned decision → fix, document, continue; anything that adds
-> a dependency, costs money, changes scope, or needs a judgment call you're unsure of →
-> STOP and ask. If a task turns out to need Opus-level reasoning or adversarial review,
-> STOP and tell the human this build should move to `rk-plan-pro`.
->
-> **If resuming an interrupted build:** the checkboxes + git log are the state. Reconcile
-> them first (last commit vs last flipped box), treat any uncommitted in-flight work as
-> untrusted (re-dispatch that task), and re-run the most recent phase's `Gate:` command
-> before continuing.
->
-> Start by reading the plan + grounding docs, then begin Phase 1, Task 1. Report progress
-> at each gate.
+`/rk-exec docs/plans/incomplete/YYYY-MM-DD-<slug>-p<N+1>.md`
+<!-- END MULTI-PART ONLY -->
+
+---
+
+<!-- PRO ONLY — delete for mid/max -->
+## Discovered
+
+<!-- Executor-owned. In-scope work found mid-build, recorded not built — one line each:
+     - Task N | <what was found> | <why it matters>
+     Scope-expanding discoveries are never listed here; the executor STOPs instead. -->
+<!-- END PRO ONLY -->
+
+---
+
+## Build log
+
+<!-- Executor-owned. One line per event, append-only, committed with the task (or as a
+     WIP commit on STOP). Format:
+     - YYYY-MM-DD HH:MM | Task N | bounce k/3 | <step that bounced> | <one-line findings>
+     - YYYY-MM-DD HH:MM | Task N | STOP | <reason> | <what the human must decide>
+     - YYYY-MM-DD HH:MM | Task N | critic iter k/3 | highest=NN | <finding ≥50 in one line>
+     - YYYY-MM-DD HH:MM | Task N | DECISION | <what was chosen> | <alternative + why>   (pro/max)
+     - YYYY-MM-DD HH:MM | Task N | AMEND | "<human's mid-run message, quoted>" | <how it was applied>
+     - YYYY-MM-DD HH:MM | Task N | DISCOVERED | <item added to ## Discovered>   (pro)
+     Resume reads this before dispatching anything. -->

@@ -50,9 +50,11 @@ clarity & fit with the codebase's existing patterns; YAGNI. Judge what THIS chan
 
 The verdict line is the FIRST line of your output, nothing before it.
 
-- `✅ APPROVED` — spec-complete and no Critical/Important quality issues.
-- `❌ CHANGES REQUESTED` — bulleted findings only, each tagged SPEC or QUALITY with a
-  `file:line` and a concrete fix. Never restate what passed.
+- `✅ APPROVED` — spec-complete and no Critical/Important quality issues. The SECOND line
+  is `Evidence: <command you ran> → <its result line>` (e.g. the task's Verify).
+- `❌ CHANGES REQUESTED` — only problems you'd block the merge for, each tagged SPEC or
+  QUALITY with: `file:line`, why it's wrong, how to show it fails (a command, input, or
+  missing-requirement quote), and a concrete fix. Never restate what passed.
 
 Output cap — you are a gate, not a coach. On ✅: the verdict line plus at most three
 sentences (including any Minor notes). On ❌: the blocking bullets only. Don't invent

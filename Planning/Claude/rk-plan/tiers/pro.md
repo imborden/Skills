@@ -34,7 +34,7 @@ You can name 3+ genuinely concurrent workstreams, multiple subsystems that benef
 
   When a task's correctness is unverifiable by any automated gate (no test can touch the real system), the adversarial phase SHOULD carry a **Human probe** line — the critic's documentary findings are hypotheses until the probe confirms them.
 
-- **Context budget is looser than mid but not unlimited** — an Opus orchestrator handles bigger plans, but past ~10–12 tasks split at a hard gate anyway; the split also gives you a clean resume point.
+- **No task cap.** Divide into parts at structural joints per SKILL.md *Divide into parts* — a behaviour probe, an independent workstream, or a fully-green gate. An Opus 5.5 session clears roughly 10+ tasks; use that to choose among joints, never to cut where none exists. A `Human probe (required)` that reviews built behaviour closes its part; rk-exec writes the probe's corrections as the opening phase of the next part.
 
 ## Run config values for this tier
 
